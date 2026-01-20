@@ -40,7 +40,7 @@ allprojects {
 ```gradle
 dependencies {
     // Android SDK（从 JitPack）
-    implementation 'com.github.carlcy:sy-rtc-android-sdk:v1.0.1'
+    implementation 'com.github.carlcy:sy-rtc-android-sdk:v1.0.3'
 }
 ```
 
@@ -623,7 +623,7 @@ await engine.setClientRole('host');
 **重要**：发布前确保原生 SDK 已发布！
 
 1. **确保原生 SDK 已发布**
-   - ✅ Android SDK 已发布到 JitPack（GitHub: carlcy/sy-rtc-android-sdk, v1.0.1）
+   - ✅ Android SDK 已发布到 JitPack（GitHub: carlcy/sy-rtc-android-sdk, v1.0.3）
    - ✅ iOS：Flutter 插件内置并自动集成（iOS 13+）
 
 2. **检查 pubspec.yaml**
