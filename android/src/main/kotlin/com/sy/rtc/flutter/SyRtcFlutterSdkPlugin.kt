@@ -164,6 +164,10 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
         val speakersList = speakers.map { mapOf("uid" to it.uid, "volume" to it.volume) }
         eventChannel?.invokeMethod("onVolumeIndication", mapOf("speakers" to speakersList))
       }
+
+      override fun onError(code: Int, message: String) {
+        eventChannel?.invokeMethod("onError", mapOf("errCode" to code, "errMsg" to message))
+      }
     }
   }
 

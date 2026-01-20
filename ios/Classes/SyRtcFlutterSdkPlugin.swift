@@ -3,7 +3,7 @@ import UIKit
 
 public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
   private var engine: SyRtcEngine?
-  private var eventChannel: FlutterEventChannel?
+  private var eventChannel: FlutterMethodChannel?
   private var appFeatures: Set<String> = ["voice"] // 默认只有语聊功能
   private var apiBaseUrl: String?
   
@@ -12,7 +12,7 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
     let instance = SyRtcFlutterSdkPlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
     
-    instance.eventChannel = FlutterEventChannel(name: "sy_rtc_flutter_sdk/events", binaryMessenger: registrar.messenger())
+    instance.eventChannel = FlutterMethodChannel(name: "sy_rtc_flutter_sdk/events", binaryMessenger: registrar.messenger())
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -184,26 +184,19 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
 
 extension SyRtcFlutterSdkPlugin: SyRtcEventHandler {
   public func onUserJoined(uid: String, elapsed: Int) {
-    eventChannel?.sendEventStream([
-      "type": "onUserJoined",
-      "uid": uid,
-      "elapsed": elapsed
-    ])
+    eventChannel?.invokeMethod("onUserJoined", arguments: ["uid": uid, "elapsed": elapsed])
   }
   
   public func onUserOffline(uid: String, reason: String) {
-    eventChannel?.sendEventStream([
-      "type": "onUserOffline",
-      "uid": uid,
-      "reason": reason
-    ])
+    eventChannel?.invokeMethod("onUserOffline", arguments: ["uid": uid, "reason": reason])
   }
   
   public func onVolumeIndication(speakers: [SyVolumeInfo]) {
     let speakersList = speakers.map { ["uid": $0.uid, "volume": $0.volume] }
-    eventChannel?.sendEventStream([
-      "type": "onVolumeIndication",
-      "speakers": speakersList
-    ])
+    eventChannel?.invokeMethod("onVolumeIndication", arguments: ["speakers": speakersList])
+  }
+
+  public func onError(code: Int, message: String) {
+    eventChannel?.invokeMethod("onError", arguments: ["errCode": code, "errMsg": message])
   }
 }

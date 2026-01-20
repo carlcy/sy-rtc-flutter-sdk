@@ -18,6 +18,8 @@ import 'sy_rtc_video_quality.dart';
 /// ```
 class SyRtcEngine {
   static const MethodChannel _channel = MethodChannel('sy_rtc_flutter_sdk');
+  // 兼容：部分原生实现会把事件发送到单独的 MethodChannel
+  static const MethodChannel _eventsChannel = MethodChannel('sy_rtc_flutter_sdk/events');
   static final SyRtcEngine _instance = SyRtcEngine._internal();
   
   SyRtcEventHandler? _eventHandler;
@@ -27,6 +29,7 @@ class SyRtcEngine {
   
   SyRtcEngine._internal() {
     _channel.setMethodCallHandler(_handleMethodCall);
+    _eventsChannel.setMethodCallHandler(_handleMethodCall);
   }
 
   /// 初始化引擎

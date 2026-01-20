@@ -2,7 +2,7 @@
 
 [![pub package](https://img.shields.io/pub/v/sy_rtc_flutter_sdk.svg)](https://pub.dev/packages/sy_rtc_flutter_sdk)
 
-**当前版本**: 0.1.1
+**当前版本**: 0.1.2
 
 SY RTC Flutter SDK 是一个用于实时音视频通信的 Flutter 插件，提供简洁易用的 API 接口。
 
@@ -54,7 +54,7 @@ dependencies {
 
 ```yaml
 dependencies:
-  sy_rtc_flutter_sdk: ^0.1.1
+  sy_rtc_flutter_sdk: ^0.1.2
 ```
 
 然后运行：
