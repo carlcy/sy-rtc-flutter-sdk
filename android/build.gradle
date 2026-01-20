@@ -69,7 +69,7 @@ dependencies {
     // 依赖 Android SDK（从 JitPack）
     // 注意：用户需要在应用层（android/app/build.gradle）手动添加此依赖
     // 因为 Flutter 插件不能直接依赖外部库，需要在应用层配置
-    // 用户需要添加：implementation 'com.github.carlcy:sy-rtc-android-sdk:v1.0.3'
+    // 用户需要添加：implementation 'com.github.carlcy:sy-rtc-android-sdk:v1.0.4'
     
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")
