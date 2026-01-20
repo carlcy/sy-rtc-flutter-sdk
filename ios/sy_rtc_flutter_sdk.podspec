@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'sy_rtc_flutter_sdk'
-  s.version          = '0.1.0'
+  s.version          = '0.1.1'
   s.summary          = 'SY RTC Flutter SDK - A Flutter plugin for real-time audio and video communication'
   s.description      = <<-DESC
 SY RTC Flutter SDK provides real-time audio and video communication capabilities for Flutter applications.
@@ -21,7 +21,8 @@ Android 端依赖原生 SDK；iOS 端已在插件内置实现并自动集成（�
   s.platform = :ios, '13.0'
 
   # Flutter.framework does not contain a i386 slice.
-  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
+  # Apple Silicon 下 Simulator arm64 可能与部分预编译依赖不匹配，这里一并排除，避免链接失败。
+  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386 arm64' }
   s.swift_version = '5.0'
 
   # If your plugin requires a privacy manifest, for example if it uses any
