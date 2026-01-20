@@ -1,0 +1,76 @@
+// @formatter:off
+// IDE inspection disabled - this file uses valid Gradle syntax
+// @formatter:on
+
+group = "com.sy.rtc.flutter"
+version = "1.0-SNAPSHOT"
+
+buildscript {
+    ext.kotlin_version = "1.8.22"
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.1.0")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }  // JitPack 仓库（用于 Android SDK）
+    }
+}
+
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+
+android {
+    namespace = "com.sy.rtc.flutter"
+
+    compileSdk = 35
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_11
+    }
+
+    sourceSets {
+        main.java.srcDirs += "src/main/kotlin"
+        test.java.srcDirs += "src/test/kotlin"
+    }
+
+    defaultConfig {
+        minSdk = 21
+    }
+
+    testOptions {
+        unitTests.all {
+            useJUnitPlatform()
+
+            testLogging {
+               events "passed", "skipped", "failed", "standardOut", "standardError"
+               outputs.upToDateWhen {false}
+               showStandardStreams = true
+            }
+        }
+    }
+}
+
+dependencies {
+    // 依赖 Android SDK（从 JitPack）
+    // 注意：用户需要在应用层（android/app/build.gradle）手动添加此依赖
+    // 因为 Flutter 插件不能直接依赖外部库，需要在应用层配置
+    // 用户需要添加：implementation 'com.github.carlcy:sy-rtc-android-sdk:v1.0.0'
+    
+    testImplementation("org.jetbrains.kotlin:kotlin-test")
+    testImplementation("org.mockito:mockito-core:5.0.0")
+}

@@ -1,0 +1,26 @@
+// @formatter:off
+// IDE inspection disabled - this file uses valid Gradle syntax
+// @formatter:on
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        // 添加本地 AAR 仓库
+        flatDir {
+            dirs '../../../rtc-android-sdk/build/outputs/aar'
+        }
+    }
+}
+
+rootProject.buildDir = "../build"
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+subprojects {
+    project.evaluationDependsOn(":app")
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}
