@@ -2,6 +2,8 @@
 
 [![pub package](https://img.shields.io/pub/v/sy_rtc_flutter_sdk.svg)](https://pub.dev/packages/sy_rtc_flutter_sdk)
 
+**当前版本**: 0.1.0
+
 SY RTC Flutter SDK 是一个用于实时音视频通信的 Flutter 插件，提供简洁易用的 API 接口。
 
 ## ⚠️ 重要提示
@@ -43,18 +45,28 @@ dependencies {
 }
 ```
 
-**注意**：将 `carlcy` 替换为你的 GitHub 用户名，`v1.0.0` 替换为实际的版本号。
-
 #### iOS 端配置
 
-如果 iOS SDK 已发布到 CocoaPods，在 `ios/Podfile` 中添加：
+iOS SDK 已发布到 GitHub，使用 Swift Package Manager 方式：
+
+**在 Xcode 中配置：**
+
+1. 打开 `ios/Runner.xcworkspace`（或 `.xcodeproj`）
+2. 选择项目 → **Package Dependencies** 标签
+3. 点击 **+** 按钮
+4. 输入仓库地址：`https://github.com/carlcy/sy-rtc-ios-sdk`
+5. 选择版本：`1.0.0`
+6. 点击 **Add Package**
+
+**或者手动编辑 `ios/Podfile`（如果使用 CocoaPods）：**
 
 ```ruby
-platform :ios, '12.0'
+platform :ios, '13.0'
 use_frameworks!
 
 target 'Runner' do
-  pod 'SyRtcSDK', '~> 1.0.0'  # iOS SDK
+  # iOS SDK（通过 Git）
+  pod 'SyRtcSDK', :git => 'https://github.com/carlcy/sy-rtc-ios-sdk.git', :tag => '1.0.0'
 end
 ```
 
@@ -70,7 +82,7 @@ pod install
 
 ```yaml
 dependencies:
-  sy_rtc_flutter_sdk: ^0.0.1
+  sy_rtc_flutter_sdk: ^0.1.0
 ```
 
 然后运行：
@@ -635,14 +647,14 @@ await engine.setClientRole('host');
 **重要**：发布前确保原生 SDK 已发布！
 
 1. **确保原生 SDK 已发布**
-   - ✅ Android SDK 已发布到 JitPack（GitHub: carlcy/sy-rtc-android-sdk）
-   - ✅ iOS SDK 已发布到 CocoaPods（可选）
+   - ✅ Android SDK 已发布到 JitPack（GitHub: carlcy/sy-rtc-android-sdk, v1.0.0）
+   - ✅ iOS SDK 已发布到 GitHub（Swift Package Manager, 1.0.0）
 
 2. **检查 pubspec.yaml**
    ```yaml
    name: sy_rtc_flutter_sdk
    description: "SY RTC Flutter SDK - A Flutter plugin for real-time audio and video communication"
-   version: 0.0.1
+   version: 0.1.0
    homepage: https://github.com/carlcy/sy_rtc_flutter_sdk
    ```
 
@@ -663,7 +675,7 @@ await engine.setClientRole('host');
 - **Flutter**: >=3.3.0
 - **Dart**: >=3.6.2
 - **Android**: minSdk 21+ (Android 5.0)
-- **iOS**: iOS 12.0+
+- **iOS**: iOS 13.0+
 
 ## 📄 许可证
 
