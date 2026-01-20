@@ -33,10 +33,14 @@ class SyRtcEngine {
   /// 
   /// [appId] 应用ID
   /// [apiBaseUrl] API基础URL（可选，用于查询功能权限）
-  Future<void> init(String appId, {String? apiBaseUrl}) async {
+  /// [signalingUrl] 信令 WebSocket 地址（可选），例如：
+  /// - ws://47.105.48.196/ws/signaling
+  /// - wss://your-domain.com/ws/signaling
+  Future<void> init(String appId, {String? apiBaseUrl, String? signalingUrl}) async {
     await _channel.invokeMethod('init', {
       'appId': appId,
       'apiBaseUrl': apiBaseUrl,
+      'signalingUrl': signalingUrl,
     });
     
     // 如果提供了API URL，查询功能权限

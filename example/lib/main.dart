@@ -58,6 +58,8 @@ class _MyAppState extends State<MyApp> {
       await _engine.init(
         'your_app_id',
         apiBaseUrl: 'https://api.example.com', // 您的API基础URL
+        // 生产环境建议使用 wss://your-domain.com/ws/signaling
+        signalingUrl: 'ws://47.105.48.196/ws/signaling',
       );
       
       // 检查功能权限

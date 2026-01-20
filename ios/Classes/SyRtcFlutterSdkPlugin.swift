@@ -2,7 +2,7 @@ import Flutter
 import UIKit
 
 public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
-  private var engine: RtcEngine?
+  private var engine: SyRtcEngine?
   private var eventChannel: FlutterEventChannel?
   private var appFeatures: Set<String> = ["voice"] // 默认只有语聊功能
   private var apiBaseUrl: String?
@@ -20,9 +20,12 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
     case "init":
       if let args = call.arguments as? [String: Any],
          let appId = args["appId"] as? String {
-        engine = RtcEngine.shared
-        engine?.init(appId)
+        engine = SyRtcEngine.shared
+        engine?.initialize(appId: appId)
         apiBaseUrl = args["apiBaseUrl"] as? String
+        if let signalingUrl = args["signalingUrl"] as? String, !signalingUrl.isEmpty {
+          engine?.setSignalingServerUrl(signalingUrl)
+        }
         // 如果提供了API URL，查询功能权限
         if let apiUrl = apiBaseUrl, !apiUrl.isEmpty {
           checkFeatures(appId: appId, apiBaseUrl: apiUrl)
@@ -90,7 +93,7 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
     case "setClientRole":
       if let args = call.arguments as? [String: Any],
          let roleStr = args["role"] as? String {
-        let role: RtcClientRole = roleStr == "host" ? .host : .audience
+        let role: SyRtcClientRole = roleStr == "host" ? .host : .audience
         engine?.setClientRole(role)
         result(true)
       } else {
@@ -179,7 +182,7 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
   }
 }
 
-extension SyRtcFlutterSdkPlugin: RtcEventHandler {
+extension SyRtcFlutterSdkPlugin: SyRtcEventHandler {
   public func onUserJoined(uid: String, elapsed: Int) {
     eventChannel?.sendEventStream([
       "type": "onUserJoined",
@@ -196,7 +199,7 @@ extension SyRtcFlutterSdkPlugin: RtcEventHandler {
     ])
   }
   
-  public func onVolumeIndication(speakers: [VolumeInfo]) {
+  public func onVolumeIndication(speakers: [SyVolumeInfo]) {
     let speakersList = speakers.map { ["uid": $0.uid, "volume": $0.volume] }
     eventChannel?.sendEventStream([
       "type": "onVolumeIndication",

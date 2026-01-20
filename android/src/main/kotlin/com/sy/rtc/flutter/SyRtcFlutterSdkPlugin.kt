@@ -33,12 +33,16 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
       "init" -> {
         val appId = call.argument<String>("appId")
         val apiUrl = call.argument<String>("apiBaseUrl")
+        val signalingUrl = call.argument<String>("signalingUrl")
         if (appId != null) {
           engine = RtcEngine.create()
           // 使用保存的 Application Context
           val context = flutterContext
           if (context != null) {
             engine?.init(appId, context)
+            if (signalingUrl != null && signalingUrl.isNotEmpty()) {
+              engine?.setSignalingServerUrl(signalingUrl)
+            }
             apiBaseUrl = apiUrl
           // 如果提供了API URL，查询功能权限
           if (apiUrl != null && apiUrl.isNotEmpty()) {

@@ -8,16 +8,16 @@ Pod::Spec.new do |s|
   s.summary          = 'SY RTC Flutter SDK - A Flutter plugin for real-time audio and video communication'
   s.description      = <<-DESC
 SY RTC Flutter SDK provides real-time audio and video communication capabilities for Flutter applications.
-This plugin requires native Android and iOS SDKs to be configured in your project.
+Android 端依赖原生 SDK；iOS 端已在插件内置实现并自动集成（无需手动配置 iOS SDK）。
                        DESC
   s.homepage         = 'https://github.com/carlcy/sy_rtc_flutter_sdk'
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'SY RTC Team' => 'support@sy-rtc.com' }
   s.source           = { :path => '.' }
-  s.source_files = 'Classes/**/*'
+  s.source_files = 'Classes/**/*', 'SyRtcSDK/**/*.swift'
   s.dependency 'Flutter'
-  # iOS SDK 依赖（通过 Swift Package Manager）
-  # 用户需要在 Xcode 中手动添加：https://github.com/carlcy/sy-rtc-ios-sdk
+  # iOS 端内置 SyRtcSDK 源码，并依赖 GoogleWebRTC（避免 Flutter 用户手动集成）
+  s.dependency 'GoogleWebRTC'
   s.platform = :ios, '13.0'
 
   # Flutter.framework does not contain a i386 slice.

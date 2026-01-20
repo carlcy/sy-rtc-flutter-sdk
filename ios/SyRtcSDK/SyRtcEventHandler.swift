@@ -1,0 +1,25 @@
+import Foundation
+
+/// SY RTC事件处理器协议
+public protocol SyRtcEventHandler: AnyObject {
+    /// 用户加入回调
+    func onUserJoined(uid: String, elapsed: Int)
+    
+    /// 用户离开回调
+    func onUserOffline(uid: String, reason: String)
+    
+    /// 音量指示回调
+    func onVolumeIndication(speakers: [SyVolumeInfo])
+}
+
+/// 音量信息
+public struct SyVolumeInfo {
+    public let uid: String
+    public let volume: Int
+    
+    public init(uid: String, volume: Int) {
+        self.uid = uid
+        self.volume = volume
+    }
+}
+
