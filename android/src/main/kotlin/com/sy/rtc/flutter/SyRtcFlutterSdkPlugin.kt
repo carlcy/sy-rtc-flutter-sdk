@@ -59,6 +59,9 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
           engine?.setSignalingServerUrl(signalingUrl)
         }
         apiBaseUrl = apiUrl
+        if (apiUrl != null && apiUrl.isNotEmpty()) {
+          engine?.setApiBaseUrl(apiUrl)
+        }
 
         // 如果提供了API URL，查询功能权限
         if (apiUrl != null && apiUrl.isNotEmpty()) {

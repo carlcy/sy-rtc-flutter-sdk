@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:sy_rtc_flutter_sdk/sy_rtc_flutter_sdk.dart';
+import 'live_control_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -133,6 +134,36 @@ class _MyAppState extends State<MyApp> {
                   }
                 },
                 child: const Text('启用视频（需要直播权限）'),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () async {
+                  try {
+                    bool hasLive = await _engine.hasLiveFeature();
+                    if (hasLive) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => LiveControlPage(
+                            engine: _engine,
+                            channelId: 'channel_001',
+                            uid: 'user_001',
+                            token: 'token_here',
+                          ),
+                        ),
+                      );
+                    } else {
+                      setState(() {
+                        _status = '当前AppId未开通直播功能';
+                      });
+                    }
+                  } catch (e) {
+                    setState(() {
+                      _status = '打开直播控制失败: $e';
+                    });
+                  }
+                },
+                child: const Text('直播控制面板'),
               ),
             ],
           ),

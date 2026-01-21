@@ -20,7 +20,6 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.sy_rtc_flutter_sdk_example"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
@@ -32,7 +31,6 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.debug
         }
@@ -43,6 +41,10 @@ dependencies {
     // 添加 SY RTC Android SDK 依赖（开发/示例默认使用本仓库构建出的本地 AAR）
     // 产物位置：rtc-android-sdk/build/outputs/aar/sy-rtc-android-sdk-release.aar
     implementation(name: 'sy-rtc-android-sdk-release', ext: 'aar')
+
+    // 本地 AAR 不携带其 Maven 依赖（无 POM），示例工程需显式声明依赖：
+    implementation 'io.github.webrtc-sdk:android:125.6422.07'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 }
 
 flutter {

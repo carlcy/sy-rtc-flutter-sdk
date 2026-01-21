@@ -26,6 +26,9 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
         if let signalingUrl = args["signalingUrl"] as? String, !signalingUrl.isEmpty {
           engine?.setSignalingServerUrl(signalingUrl)
         }
+        if let apiUrl = apiBaseUrl, !apiUrl.isEmpty {
+          engine?.setApiBaseUrl(apiUrl)
+        }
         // 如果提供了API URL，查询功能权限
         if let apiUrl = apiBaseUrl, !apiUrl.isEmpty {
           checkFeatures(appId: appId, apiBaseUrl: apiUrl)
