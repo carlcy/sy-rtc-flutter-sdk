@@ -13,6 +13,13 @@
 - ✅ 错误回调：Android/iOS 原生错误统一透传到 `engine.onError`
 - ✅ RTMP：未集成推流库时改为显式错误回调（避免“看似成功实际失败”）
 
+## 0.1.3
+
+### 更新内容
+- ✅ Flutter 插件：补齐 Dart 层大量 MethodChannel 能力在 Android/iOS 原生侧的实现，消除 MissingPlugin
+- ✅ iOS：修复内置 SyRtcSDK 编译问题，示例工程可 `flutter build ios --no-codesign` 通过
+- ✅ WebRTC 直播旁路：新增服务端 egress 组件（`rtc-egress-service`）与后端控制接口（`/api/rtc/egress/*`）
+
 ## 0.1.0
 
 ### 更新内容

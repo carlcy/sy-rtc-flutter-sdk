@@ -10,6 +10,14 @@ import com.sy.rtc.sdk.RtcEngine
 import com.sy.rtc.sdk.RtcEventHandler
 import com.sy.rtc.sdk.RtcClientRole
 import com.sy.rtc.sdk.VolumeInfo
+import com.sy.rtc.sdk.AudioDeviceInfo
+import com.sy.rtc.sdk.AudioMixingConfiguration
+import com.sy.rtc.sdk.AudioEffectConfiguration
+import com.sy.rtc.sdk.AudioRecordingConfiguration
+import com.sy.rtc.sdk.BeautyOptions
+import com.sy.rtc.sdk.LiveTranscoding
+import com.sy.rtc.sdk.ScreenCaptureConfiguration
+import com.sy.rtc.sdk.TranscodingUser
 
 /** SyRtcFlutterSdkPlugin */
 class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
@@ -34,27 +42,32 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
         val appId = call.argument<String>("appId")
         val apiUrl = call.argument<String>("apiBaseUrl")
         val signalingUrl = call.argument<String>("signalingUrl")
-        if (appId != null) {
-          engine = RtcEngine.create()
-          // 使用保存的 Application Context
-          val context = flutterContext
-          if (context != null) {
-            engine?.init(appId, context)
-            if (signalingUrl != null && signalingUrl.isNotEmpty()) {
-              engine?.setSignalingServerUrl(signalingUrl)
-            }
-            apiBaseUrl = apiUrl
-          // 如果提供了API URL，查询功能权限
-          if (apiUrl != null && apiUrl.isNotEmpty()) {
-            checkFeatures(appId, apiUrl)
-          } else {
-            // 默认只有语聊功能
-            appFeatures = mutableSetOf("voice")
-          }
-          result.success(true)
-        } else {
+        if (appId == null) {
           result.error("INVALID_ARGUMENT", "appId is required", null)
+          return
         }
+
+        engine = RtcEngine.create()
+        val context = flutterContext
+        if (context == null) {
+          result.error("INVALID_ARGUMENT", "context is required", null)
+          return
+        }
+
+        engine?.init(appId, context)
+        if (signalingUrl != null && signalingUrl.isNotEmpty()) {
+          engine?.setSignalingServerUrl(signalingUrl)
+        }
+        apiBaseUrl = apiUrl
+
+        // 如果提供了API URL，查询功能权限
+        if (apiUrl != null && apiUrl.isNotEmpty()) {
+          checkFeatures(appId, apiUrl)
+        } else {
+          // 默认只有语聊功能
+          appFeatures = mutableSetOf("voice")
+        }
+        result.success(true)
       }
       "checkFeatures" -> {
         val appId = call.argument<String>("appId")
@@ -138,6 +151,362 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
           engine?.enableVideo()
           result.success(true)
         }
+      }
+      "disableVideo" -> {
+        engine?.disableVideo()
+        result.success(true)
+      }
+      "enableAudio" -> {
+        engine?.enableAudio()
+        result.success(true)
+      }
+      "disableAudio" -> {
+        engine?.disableAudio()
+        result.success(true)
+      }
+      "setAudioProfile" -> {
+        val args = call.arguments as? Map<*, *>
+        val profile = args?.get("profile") as? String ?: "default"
+        val scenario = args?.get("scenario") as? String ?: "default"
+        engine?.setAudioProfile(profile, scenario)
+        result.success(true)
+      }
+      "setEnableSpeakerphone" -> {
+        val enabled = call.argument<Boolean>("enabled") ?: false
+        engine?.setEnableSpeakerphone(enabled)
+        result.success(true)
+      }
+      "setDefaultAudioRouteToSpeakerphone" -> {
+        val enabled = call.argument<Boolean>("enabled") ?: false
+        engine?.setDefaultAudioRouteToSpeakerphone(enabled)
+        result.success(true)
+      }
+      "isSpeakerphoneEnabled" -> {
+        result.success(engine?.isSpeakerphoneEnabled() ?: false)
+      }
+      "enumerateRecordingDevices" -> {
+        val devices = engine?.enumerateRecordingDevices() ?: emptyList()
+        result.success(devices.map { mapOf("deviceId" to it.deviceId, "deviceName" to it.deviceName) })
+      }
+      "enumeratePlaybackDevices" -> {
+        val devices = engine?.enumeratePlaybackDevices() ?: emptyList()
+        result.success(devices.map { mapOf("deviceId" to it.deviceId, "deviceName" to it.deviceName) })
+      }
+      "setRecordingDevice" -> {
+        val deviceId = call.argument<String>("deviceId") ?: ""
+        result.success(engine?.setRecordingDevice(deviceId) ?: -1)
+      }
+      "setPlaybackDevice" -> {
+        val deviceId = call.argument<String>("deviceId") ?: ""
+        result.success(engine?.setPlaybackDevice(deviceId) ?: -1)
+      }
+      "getRecordingDeviceVolume" -> {
+        result.success(engine?.getRecordingDeviceVolume() ?: 0)
+      }
+      "setRecordingDeviceVolume" -> {
+        val volume = call.argument<Int>("volume") ?: 0
+        engine?.setRecordingDeviceVolume(volume)
+        result.success(true)
+      }
+      "getPlaybackDeviceVolume" -> {
+        result.success(engine?.getPlaybackDeviceVolume() ?: 0)
+      }
+      "setPlaybackDeviceVolume" -> {
+        val volume = call.argument<Int>("volume") ?: 0
+        engine?.setPlaybackDeviceVolume(volume)
+        result.success(true)
+      }
+      "muteRemoteAudioStream" -> {
+        val uid = call.argument<String>("uid") ?: ""
+        val muted = call.argument<Boolean>("muted") ?: false
+        engine?.muteRemoteAudioStream(uid, muted)
+        result.success(true)
+      }
+      "muteAllRemoteAudioStreams" -> {
+        val muted = call.argument<Boolean>("muted") ?: false
+        engine?.muteAllRemoteAudioStreams(muted)
+        result.success(true)
+      }
+      "adjustUserPlaybackSignalVolume" -> {
+        val uid = call.argument<String>("uid") ?: ""
+        val volume = call.argument<Int>("volume") ?: 100
+        engine?.adjustUserPlaybackSignalVolume(uid, volume)
+        result.success(true)
+      }
+      "adjustPlaybackSignalVolume" -> {
+        val volume = call.argument<Int>("volume") ?: 100
+        engine?.adjustPlaybackSignalVolume(volume)
+        result.success(true)
+      }
+      "renewToken" -> {
+        val token = call.argument<String>("token") ?: ""
+        engine?.renewToken(token)
+        result.success(true)
+      }
+      "getConnectionState" -> {
+        result.success(engine?.getConnectionState() ?: "disconnected")
+      }
+      "getNetworkType" -> {
+        result.success(engine?.getNetworkType() ?: "unknown")
+      }
+      "adjustRecordingSignalVolume" -> {
+        val volume = call.argument<Int>("volume") ?: 100
+        engine?.adjustRecordingSignalVolume(volume)
+        result.success(true)
+      }
+      "muteRecordingSignal" -> {
+        val muted = call.argument<Boolean>("muted") ?: false
+        engine?.muteRecordingSignal(muted)
+        result.success(true)
+      }
+      "enableLocalVideo" -> {
+        val enabled = call.argument<Boolean>("enabled") ?: true
+        engine?.enableLocalVideo(enabled)
+        result.success(true)
+      }
+      "startPreview" -> {
+        engine?.startPreview()
+        result.success(true)
+      }
+      "stopPreview" -> {
+        engine?.stopPreview()
+        result.success(true)
+      }
+      "muteLocalVideoStream" -> {
+        val muted = call.argument<Boolean>("muted") ?: false
+        engine?.muteLocalVideoStream(muted)
+        result.success(true)
+      }
+      "muteRemoteVideoStream" -> {
+        val uid = call.argument<String>("uid") ?: ""
+        val muted = call.argument<Boolean>("muted") ?: false
+        engine?.muteRemoteVideoStream(uid, muted)
+        result.success(true)
+      }
+      "muteAllRemoteVideoStreams" -> {
+        val muted = call.argument<Boolean>("muted") ?: false
+        engine?.muteAllRemoteVideoStreams(muted)
+        result.success(true)
+      }
+      "setupLocalVideo" -> {
+        // Android 侧 SDK setupLocalVideo 接受 Any，这里仅透传 viewId（上层若需要可扩展为 SurfaceView/TextureView）
+        val viewId = call.argument<Int>("viewId") ?: 0
+        engine?.setupLocalVideo(viewId)
+        result.success(true)
+      }
+      "setupRemoteVideo" -> {
+        val uid = call.argument<String>("uid") ?: ""
+        val viewId = call.argument<Int>("viewId") ?: 0
+        engine?.setupRemoteVideo(uid, viewId)
+        result.success(true)
+      }
+      "startScreenCapture" -> {
+        val args = call.arguments as? Map<*, *>
+        val config = ScreenCaptureConfiguration(
+          width = args?.get("width") as? Int ?: 0,
+          height = args?.get("height") as? Int ?: 0,
+          frameRate = args?.get("frameRate") as? Int ?: 15,
+          bitrate = args?.get("bitrate") as? Int ?: 0,
+          captureMouseCursor = args?.get("captureMouseCursor") as? Boolean ?: true
+        )
+        engine?.startScreenCapture(config)
+        result.success(true)
+      }
+      "stopScreenCapture" -> {
+        engine?.stopScreenCapture()
+        result.success(true)
+      }
+      "updateScreenCaptureConfiguration" -> {
+        val args = call.arguments as? Map<*, *>
+        val config = ScreenCaptureConfiguration(
+          width = args?.get("width") as? Int ?: 0,
+          height = args?.get("height") as? Int ?: 0,
+          frameRate = args?.get("frameRate") as? Int ?: 15,
+          bitrate = args?.get("bitrate") as? Int ?: 0,
+          captureMouseCursor = args?.get("captureMouseCursor") as? Boolean ?: true
+        )
+        engine?.updateScreenCaptureConfiguration(config)
+        result.success(true)
+      }
+      "setBeautyEffectOptions" -> {
+        val args = call.arguments as? Map<*, *>
+        val options = BeautyOptions(
+          enabled = args?.get("enabled") as? Boolean ?: false,
+          lighteningLevel = (args?.get("lighteningLevel") as? Number)?.toDouble() ?: 0.5,
+          smoothnessLevel = (args?.get("smoothnessLevel") as? Number)?.toDouble() ?: 0.5,
+          rednessLevel = (args?.get("rednessLevel") as? Number)?.toDouble() ?: 0.1
+        )
+        engine?.setBeautyEffectOptions(options)
+        result.success(true)
+      }
+      "startAudioMixing" -> {
+        val args = call.arguments as? Map<*, *>
+        val config = AudioMixingConfiguration(
+          filePath = args?.get("filePath") as? String ?: "",
+          loopback = args?.get("loopback") as? Boolean ?: false,
+          cycle = args?.get("cycle") as? Int ?: 1,
+          startPos = args?.get("startPos") as? Int ?: 0
+        )
+        engine?.startAudioMixing(config)
+        result.success(true)
+      }
+      "stopAudioMixing" -> {
+        engine?.stopAudioMixing()
+        result.success(true)
+      }
+      "pauseAudioMixing" -> {
+        engine?.pauseAudioMixing()
+        result.success(true)
+      }
+      "resumeAudioMixing" -> {
+        engine?.resumeAudioMixing()
+        result.success(true)
+      }
+      "adjustAudioMixingVolume" -> {
+        val volume = call.argument<Int>("volume") ?: 100
+        engine?.adjustAudioMixingVolume(volume)
+        result.success(true)
+      }
+      "getAudioMixingCurrentPosition" -> {
+        result.success(engine?.getAudioMixingCurrentPosition() ?: 0)
+      }
+      "setAudioMixingPosition" -> {
+        val position = call.argument<Int>("position") ?: 0
+        engine?.setAudioMixingPosition(position)
+        result.success(true)
+      }
+      "playEffect" -> {
+        val args = call.arguments as? Map<*, *>
+        val soundId = args?.get("soundId") as? Int ?: 0
+        val config = AudioEffectConfiguration(
+          filePath = args?.get("filePath") as? String ?: "",
+          loopCount = args?.get("loopCount") as? Int ?: 1,
+          publish = args?.get("publish") as? Boolean ?: false,
+          startPos = args?.get("startPos") as? Int ?: 0
+        )
+        engine?.playEffect(soundId, config)
+        result.success(true)
+      }
+      "stopEffect" -> {
+        val soundId = call.argument<Int>("soundId") ?: 0
+        engine?.stopEffect(soundId)
+        result.success(true)
+      }
+      "stopAllEffects" -> {
+        engine?.stopAllEffects()
+        result.success(true)
+      }
+      "setEffectsVolume" -> {
+        val volume = call.argument<Int>("volume") ?: 100
+        engine?.setEffectsVolume(volume)
+        result.success(true)
+      }
+      "preloadEffect" -> {
+        val args = call.arguments as? Map<*, *>
+        val soundId = args?.get("soundId") as? Int ?: 0
+        val filePath = args?.get("filePath") as? String ?: ""
+        engine?.preloadEffect(soundId, filePath)
+        result.success(true)
+      }
+      "unloadEffect" -> {
+        val soundId = call.argument<Int>("soundId") ?: 0
+        engine?.unloadEffect(soundId)
+        result.success(true)
+      }
+      "startAudioRecording" -> {
+        val args = call.arguments as? Map<*, *>
+        val config = AudioRecordingConfiguration(
+          filePath = args?.get("filePath") as? String ?: "",
+          sampleRate = args?.get("sampleRate") as? Int ?: 32000,
+          channels = args?.get("channels") as? Int ?: 1,
+          codecType = args?.get("codecType") as? String ?: "aacLc",
+          quality = args?.get("quality") as? String ?: "medium"
+        )
+        result.success(engine?.startAudioRecording(config) ?: -1)
+      }
+      "stopAudioRecording" -> {
+        engine?.stopAudioRecording()
+        result.success(true)
+      }
+      "createDataStream" -> {
+        val reliable = call.argument<Boolean>("reliable") ?: true
+        val ordered = call.argument<Boolean>("ordered") ?: true
+        result.success(engine?.createDataStream(reliable, ordered) ?: 0)
+      }
+      "sendStreamMessage" -> {
+        val streamId = call.argument<Int>("streamId") ?: 0
+        val data = call.argument<ByteArray>("data") ?: ByteArray(0)
+        engine?.sendStreamMessage(streamId, data)
+        result.success(true)
+      }
+      "startRtmpStreamWithTranscoding" -> {
+        val args = call.arguments as? Map<*, *>
+        val url = args?.get("url") as? String ?: ""
+        val users = (args?.get("transcodingUsers") as? List<*>)?.mapNotNull { u ->
+          val m = u as? Map<*, *> ?: return@mapNotNull null
+          TranscodingUser(
+            uid = m["uid"] as? String ?: return@mapNotNull null,
+            x = (m["x"] as? Number)?.toDouble() ?: 0.0,
+            y = (m["y"] as? Number)?.toDouble() ?: 0.0,
+            width = (m["width"] as? Number)?.toDouble() ?: 0.0,
+            height = (m["height"] as? Number)?.toDouble() ?: 0.0,
+            zOrder = m["zOrder"] as? Int ?: 0,
+            alpha = (m["alpha"] as? Number)?.toDouble() ?: 1.0
+          )
+        }
+        val transcoding = LiveTranscoding(
+          width = args?.get("width") as? Int ?: 360,
+          height = args?.get("height") as? Int ?: 640,
+          videoBitrate = args?.get("videoBitrate") as? Int ?: 400,
+          videoFramerate = args?.get("videoFramerate") as? Int ?: 15,
+          lowLatency = args?.get("lowLatency") as? Boolean ?: false,
+          videoGop = args?.get("videoGop") as? Int ?: 30,
+          backgroundColor = args?.get("backgroundColor") as? Int ?: 0x000000,
+          watermarkUrl = args?.get("watermarkUrl") as? String,
+          transcodingUsers = users
+        )
+        engine?.startRtmpStreamWithTranscoding(url, transcoding)
+        result.success(true)
+      }
+      "stopRtmpStream" -> {
+        val url = call.argument<String>("url") ?: ""
+        engine?.stopRtmpStream(url)
+        result.success(true)
+      }
+      "updateRtmpTranscoding" -> {
+        val args = call.arguments as? Map<*, *>
+        val users = (args?.get("transcodingUsers") as? List<*>)?.mapNotNull { u ->
+          val m = u as? Map<*, *> ?: return@mapNotNull null
+          TranscodingUser(
+            uid = m["uid"] as? String ?: return@mapNotNull null,
+            x = (m["x"] as? Number)?.toDouble() ?: 0.0,
+            y = (m["y"] as? Number)?.toDouble() ?: 0.0,
+            width = (m["width"] as? Number)?.toDouble() ?: 0.0,
+            height = (m["height"] as? Number)?.toDouble() ?: 0.0,
+            zOrder = m["zOrder"] as? Int ?: 0,
+            alpha = (m["alpha"] as? Number)?.toDouble() ?: 1.0
+          )
+        }
+        val transcoding = LiveTranscoding(
+          width = args?.get("width") as? Int ?: 360,
+          height = args?.get("height") as? Int ?: 640,
+          videoBitrate = args?.get("videoBitrate") as? Int ?: 400,
+          videoFramerate = args?.get("videoFramerate") as? Int ?: 15,
+          lowLatency = args?.get("lowLatency") as? Boolean ?: false,
+          videoGop = args?.get("videoGop") as? Int ?: 30,
+          backgroundColor = args?.get("backgroundColor") as? Int ?: 0x000000,
+          watermarkUrl = args?.get("watermarkUrl") as? String,
+          transcodingUsers = users
+        )
+        engine?.updateRtmpTranscoding(transcoding)
+        result.success(true)
+      }
+      "takeSnapshot" -> {
+        val args = call.arguments as? Map<*, *>
+        val uid = args?.get("uid") as? String ?: ""
+        val filePath = args?.get("filePath") as? String ?: ""
+        engine?.takeSnapshot(uid, filePath)
+        result.success(true)
       }
       "release" -> {
         engine?.release()

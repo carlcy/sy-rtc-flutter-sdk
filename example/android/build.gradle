@@ -6,9 +6,21 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // 添加本地 AAR 仓库
-        flatDir {
-            dirs '../../../rtc-android-sdk/build/outputs/aar'
+        maven { url 'https://jitpack.io' }
+        // 添加本地 AAR 仓库（向上查找，兼容 Flutter 的 .symlinks 目录结构）
+        def findAarDir = { File startDir ->
+            def dir = startDir
+            while (dir != null) {
+                def candidate = new File(dir, "rtc-android-sdk/build/outputs/aar")
+                def aar = new File(candidate, "sy-rtc-android-sdk-release.aar")
+                if (aar.exists()) return candidate
+                dir = dir.parentFile
+            }
+            return null
+        }
+        def aarDir = findAarDir(projectDir)
+        if (aarDir != null) {
+            flatDir { dirs aarDir.absolutePath }
         }
     }
 }

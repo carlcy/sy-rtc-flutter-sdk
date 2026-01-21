@@ -40,10 +40,9 @@ android {
 }
 
 dependencies {
-    // 添加 SY RTC Android SDK 依赖（使用 flatDir repository）
-    // 注意：需要先构建 rtc-android-sdk 项目生成 AAR 文件
-    // 暂时注释，等待 Android SDK 发布到 Maven 或使用其他方式集成
-    // implementation(name: 'sy-rtc-android-sdk-release', ext: 'aar')
+    // 添加 SY RTC Android SDK 依赖（开发/示例默认使用本仓库构建出的本地 AAR）
+    // 产物位置：rtc-android-sdk/build/outputs/aar/sy-rtc-android-sdk-release.aar
+    implementation(name: 'sy-rtc-android-sdk-release', ext: 'aar')
 }
 
 flutter {

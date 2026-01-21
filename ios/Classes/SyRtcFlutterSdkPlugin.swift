@@ -132,6 +132,512 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
         engine?.enableVideo()
         result(true)
       }
+
+    case "disableVideo":
+      engine?.disableVideo()
+      result(true)
+
+    case "enableAudio":
+      engine?.enableAudio()
+      result(true)
+
+    case "disableAudio":
+      engine?.disableAudio()
+      result(true)
+
+    case "setAudioProfile":
+      if let args = call.arguments as? [String: Any] {
+        let profile = args["profile"] as? String ?? "default"
+        let scenario = args["scenario"] as? String ?? "default"
+        engine?.setAudioProfile(profile, scenario: scenario)
+        result(true)
+      } else {
+        result(FlutterError(code: "INVALID_ARGUMENT", message: "Invalid audio profile", details: nil))
+      }
+
+    case "setEnableSpeakerphone":
+      if let args = call.arguments as? [String: Any],
+         let enabled = args["enabled"] as? Bool {
+        engine?.setEnableSpeakerphone(enabled)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "setDefaultAudioRouteToSpeakerphone":
+      if let args = call.arguments as? [String: Any],
+         let enabled = args["enabled"] as? Bool {
+        engine?.setDefaultAudioRouteToSpeakerphone(enabled)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "isSpeakerphoneEnabled":
+      result(engine?.isSpeakerphoneEnabled() ?? false)
+
+    case "enumerateRecordingDevices":
+      let devices = engine?.enumerateRecordingDevices() ?? []
+      result(devices.map { ["deviceId": $0.deviceId, "deviceName": $0.deviceName] })
+
+    case "enumeratePlaybackDevices":
+      let devices = engine?.enumeratePlaybackDevices() ?? []
+      result(devices.map { ["deviceId": $0.deviceId, "deviceName": $0.deviceName] })
+
+    case "setRecordingDevice":
+      if let args = call.arguments as? [String: Any],
+         let deviceId = args["deviceId"] as? String {
+        result(engine?.setRecordingDevice(deviceId) ?? -1)
+      } else {
+        result(-1)
+      }
+
+    case "setPlaybackDevice":
+      if let args = call.arguments as? [String: Any],
+         let deviceId = args["deviceId"] as? String {
+        result(engine?.setPlaybackDevice(deviceId) ?? -1)
+      } else {
+        result(-1)
+      }
+
+    case "getRecordingDeviceVolume":
+      result(engine?.getRecordingDeviceVolume() ?? 0)
+
+    case "setRecordingDeviceVolume":
+      if let args = call.arguments as? [String: Any],
+         let volume = args["volume"] as? Int {
+        engine?.setRecordingDeviceVolume(volume)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "getPlaybackDeviceVolume":
+      result(engine?.getPlaybackDeviceVolume() ?? 0)
+
+    case "setPlaybackDeviceVolume":
+      if let args = call.arguments as? [String: Any],
+         let volume = args["volume"] as? Int {
+        engine?.setPlaybackDeviceVolume(volume)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "muteRemoteAudioStream":
+      if let args = call.arguments as? [String: Any],
+         let uid = args["uid"] as? String,
+         let muted = args["muted"] as? Bool {
+        engine?.muteRemoteAudioStream(uid: uid, muted: muted)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "muteAllRemoteAudioStreams":
+      if let args = call.arguments as? [String: Any],
+         let muted = args["muted"] as? Bool {
+        engine?.muteAllRemoteAudioStreams(muted)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "adjustUserPlaybackSignalVolume":
+      if let args = call.arguments as? [String: Any],
+         let uid = args["uid"] as? String,
+         let volume = args["volume"] as? Int {
+        engine?.adjustUserPlaybackSignalVolume(uid: uid, volume: volume)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "adjustPlaybackSignalVolume":
+      if let args = call.arguments as? [String: Any],
+         let volume = args["volume"] as? Int {
+        engine?.adjustPlaybackSignalVolume(volume)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "renewToken":
+      if let args = call.arguments as? [String: Any],
+         let token = args["token"] as? String {
+        engine?.renewToken(token)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "getConnectionState":
+      result(engine?.getConnectionState() ?? "disconnected")
+
+    case "getNetworkType":
+      result(engine?.getNetworkType() ?? "unknown")
+
+    case "adjustRecordingSignalVolume":
+      if let args = call.arguments as? [String: Any],
+         let volume = args["volume"] as? Int {
+        engine?.adjustRecordingSignalVolume(volume)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "muteRecordingSignal":
+      if let args = call.arguments as? [String: Any],
+         let muted = args["muted"] as? Bool {
+        engine?.muteRecordingSignal(muted)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "enableLocalVideo":
+      if let args = call.arguments as? [String: Any],
+         let enabled = args["enabled"] as? Bool {
+        engine?.enableLocalVideo(enabled)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "startPreview":
+      engine?.startPreview()
+      result(true)
+
+    case "stopPreview":
+      engine?.stopPreview()
+      result(true)
+
+    case "muteLocalVideoStream":
+      if let args = call.arguments as? [String: Any],
+         let muted = args["muted"] as? Bool {
+        engine?.muteLocalVideoStream(muted)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "muteRemoteVideoStream":
+      if let args = call.arguments as? [String: Any],
+         let uid = args["uid"] as? String,
+         let muted = args["muted"] as? Bool {
+        engine?.muteRemoteVideoStream(uid: uid, muted: muted)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "muteAllRemoteVideoStreams":
+      if let args = call.arguments as? [String: Any],
+         let muted = args["muted"] as? Bool {
+        engine?.muteAllRemoteVideoStreams(muted)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "setupLocalVideo":
+      if let args = call.arguments as? [String: Any],
+         let viewId = args["viewId"] as? Int {
+        engine?.setupLocalVideo(viewId: viewId)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "setupRemoteVideo":
+      if let args = call.arguments as? [String: Any],
+         let uid = args["uid"] as? String,
+         let viewId = args["viewId"] as? Int {
+        engine?.setupRemoteVideo(uid: uid, viewId: viewId)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "startScreenCapture":
+      if let args = call.arguments as? [String: Any] {
+        let config = ScreenCaptureConfiguration(
+          captureMouseCursor: args["captureMouseCursor"] as? Bool ?? true,
+          captureWindow: args["captureWindow"] as? Bool ?? false,
+          frameRate: args["frameRate"] as? Int ?? 15,
+          bitrate: args["bitrate"] as? Int ?? 0,
+          width: args["width"] as? Int ?? 0,
+          height: args["height"] as? Int ?? 0
+        )
+        engine?.startScreenCapture(config)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "stopScreenCapture":
+      engine?.stopScreenCapture()
+      result(true)
+
+    case "updateScreenCaptureConfiguration":
+      if let args = call.arguments as? [String: Any] {
+        let config = ScreenCaptureConfiguration(
+          captureMouseCursor: args["captureMouseCursor"] as? Bool ?? true,
+          captureWindow: args["captureWindow"] as? Bool ?? false,
+          frameRate: args["frameRate"] as? Int ?? 15,
+          bitrate: args["bitrate"] as? Int ?? 0,
+          width: args["width"] as? Int ?? 0,
+          height: args["height"] as? Int ?? 0
+        )
+        engine?.updateScreenCaptureConfiguration(config)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "setBeautyEffectOptions":
+      if let args = call.arguments as? [String: Any] {
+        let options = BeautyOptions(
+          enabled: args["enabled"] as? Bool ?? false,
+          lighteningLevel: args["lighteningLevel"] as? Double ?? 0.5,
+          rednessLevel: args["rednessLevel"] as? Double ?? 0.1,
+          smoothnessLevel: args["smoothnessLevel"] as? Double ?? 0.5
+        )
+        engine?.setBeautyEffectOptions(options)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "startAudioMixing":
+      if let args = call.arguments as? [String: Any],
+         let filePath = args["filePath"] as? String {
+        let config = AudioMixingConfiguration(
+          filePath: filePath,
+          loopback: args["loopback"] as? Bool ?? false,
+          replace: args["replace"] as? Bool ?? false,
+          cycle: args["cycle"] as? Int ?? 1,
+          startPos: args["startPos"] as? Int ?? 0
+        )
+        engine?.startAudioMixing(config)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "stopAudioMixing":
+      engine?.stopAudioMixing()
+      result(true)
+
+    case "pauseAudioMixing":
+      engine?.pauseAudioMixing()
+      result(true)
+
+    case "resumeAudioMixing":
+      engine?.resumeAudioMixing()
+      result(true)
+
+    case "adjustAudioMixingVolume":
+      if let args = call.arguments as? [String: Any],
+         let volume = args["volume"] as? Int {
+        engine?.adjustAudioMixingVolume(volume)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "getAudioMixingCurrentPosition":
+      result(engine?.getAudioMixingCurrentPosition() ?? 0)
+
+    case "setAudioMixingPosition":
+      if let args = call.arguments as? [String: Any],
+         let position = args["position"] as? Int {
+        engine?.setAudioMixingPosition(position)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "playEffect":
+      if let args = call.arguments as? [String: Any],
+         let soundId = args["soundId"] as? Int,
+         let filePath = args["filePath"] as? String {
+        let config = AudioEffectConfiguration(
+          filePath: filePath,
+          loopCount: args["loopCount"] as? Int ?? 1,
+          publish: args["publish"] as? Bool ?? false,
+          startPos: args["startPos"] as? Int ?? 0
+        )
+        engine?.playEffect(soundId: soundId, config: config)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "stopEffect":
+      if let args = call.arguments as? [String: Any],
+         let soundId = args["soundId"] as? Int {
+        engine?.stopEffect(soundId)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "stopAllEffects":
+      engine?.stopAllEffects()
+      result(true)
+
+    case "setEffectsVolume":
+      if let args = call.arguments as? [String: Any],
+         let volume = args["volume"] as? Int {
+        engine?.setEffectsVolume(volume)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "preloadEffect":
+      if let args = call.arguments as? [String: Any],
+         let soundId = args["soundId"] as? Int,
+         let filePath = args["filePath"] as? String {
+        engine?.preloadEffect(soundId, filePath: filePath)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "unloadEffect":
+      if let args = call.arguments as? [String: Any],
+         let soundId = args["soundId"] as? Int {
+        engine?.unloadEffect(soundId)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "startAudioRecording":
+      if let args = call.arguments as? [String: Any],
+         let filePath = args["filePath"] as? String {
+        let config = AudioRecordingConfiguration(
+          filePath: filePath,
+          sampleRate: args["sampleRate"] as? Int ?? 32000,
+          channels: args["channels"] as? Int ?? 1,
+          codecType: args["codecType"] as? String ?? "aacLc",
+          quality: args["quality"] as? String ?? "medium"
+        )
+        result(engine?.startAudioRecording(config) ?? -1)
+      } else {
+        result(-1)
+      }
+
+    case "stopAudioRecording":
+      engine?.stopAudioRecording()
+      result(true)
+
+    case "createDataStream":
+      if let args = call.arguments as? [String: Any] {
+        let reliable = args["reliable"] as? Bool ?? true
+        let ordered = args["ordered"] as? Bool ?? true
+        result(engine?.createDataStream(reliable: reliable, ordered: ordered) ?? 0)
+      } else {
+        result(0)
+      }
+
+    case "sendStreamMessage":
+      if let args = call.arguments as? [String: Any],
+         let streamId = args["streamId"] as? Int,
+         let data = args["data"] as? FlutterStandardTypedData {
+        engine?.sendStreamMessage(streamId: streamId, data: data.data)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "startRtmpStreamWithTranscoding":
+      if !appFeatures.contains("live") {
+        result(FlutterError(code: "FEATURE_NOT_ENABLED", message: "当前AppId未开通直播功能", details: nil))
+        return
+      }
+      if let args = call.arguments as? [String: Any],
+         let url = args["url"] as? String {
+        let users = (args["transcodingUsers"] as? [[String: Any]])?.compactMap { u -> TranscodingUser? in
+          guard let uid = u["uid"] as? String else { return nil }
+          return TranscodingUser(
+            uid: uid,
+            x: u["x"] as? Double ?? 0,
+            y: u["y"] as? Double ?? 0,
+            width: u["width"] as? Double ?? 0,
+            height: u["height"] as? Double ?? 0,
+            zOrder: u["zOrder"] as? Int ?? 0,
+            alpha: u["alpha"] as? Double ?? 1.0
+          )
+        }
+        let transcoding = LiveTranscoding(
+          width: args["width"] as? Int ?? 360,
+          height: args["height"] as? Int ?? 640,
+          videoBitrate: args["videoBitrate"] as? Int ?? 400,
+          videoFramerate: args["videoFramerate"] as? Int ?? 15,
+          lowLatency: args["lowLatency"] as? Bool ?? false,
+          videoGop: args["videoGop"] as? Int ?? 30,
+          backgroundColor: args["backgroundColor"] as? Int ?? 0x000000,
+          watermarkUrl: args["watermarkUrl"] as? String,
+          transcodingUsers: users
+        )
+        engine?.startRtmpStreamWithTranscoding(url: url, transcoding: transcoding)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "stopRtmpStream":
+      if let args = call.arguments as? [String: Any],
+         let url = args["url"] as? String {
+        engine?.stopRtmpStream(url: url)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "updateRtmpTranscoding":
+      if let args = call.arguments as? [String: Any] {
+        let users = (args["transcodingUsers"] as? [[String: Any]])?.compactMap { u -> TranscodingUser? in
+          guard let uid = u["uid"] as? String else { return nil }
+          return TranscodingUser(
+            uid: uid,
+            x: u["x"] as? Double ?? 0,
+            y: u["y"] as? Double ?? 0,
+            width: u["width"] as? Double ?? 0,
+            height: u["height"] as? Double ?? 0,
+            zOrder: u["zOrder"] as? Int ?? 0,
+            alpha: u["alpha"] as? Double ?? 1.0
+          )
+        }
+        let transcoding = LiveTranscoding(
+          width: args["width"] as? Int ?? 360,
+          height: args["height"] as? Int ?? 640,
+          videoBitrate: args["videoBitrate"] as? Int ?? 400,
+          videoFramerate: args["videoFramerate"] as? Int ?? 15,
+          lowLatency: args["lowLatency"] as? Bool ?? false,
+          videoGop: args["videoGop"] as? Int ?? 30,
+          backgroundColor: args["backgroundColor"] as? Int ?? 0x000000,
+          watermarkUrl: args["watermarkUrl"] as? String,
+          transcodingUsers: users
+        )
+        engine?.updateRtmpTranscoding(transcoding)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "takeSnapshot":
+      if let args = call.arguments as? [String: Any],
+         let uid = args["uid"] as? String,
+         let filePath = args["filePath"] as? String {
+        engine?.takeSnapshot(uid: uid, filePath: filePath)
+        result(true)
+      } else {
+        result(false)
+      }
       
     case "release":
       engine?.release()
@@ -142,7 +648,6 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
       result(FlutterMethodNotImplemented)
     }
   }
-}
 
   private func checkFeatures(appId: String, apiBaseUrl: String) {
     let urlString = "\(apiBaseUrl)/api/rtc/feature/\(appId)"

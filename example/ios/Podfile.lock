@@ -1,0 +1,35 @@
+PODS:
+  - Flutter (1.0.0)
+  - GoogleWebRTC (1.1.32000)
+  - integration_test (0.0.1):
+    - Flutter
+  - sy_rtc_flutter_sdk (0.1.2):
+    - Flutter
+    - GoogleWebRTC
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - integration_test (from `.symlinks/plugins/integration_test/ios`)
+  - sy_rtc_flutter_sdk (from `.symlinks/plugins/sy_rtc_flutter_sdk/ios`)
+
+SPEC REPOS:
+  trunk:
+    - GoogleWebRTC
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  integration_test:
+    :path: ".symlinks/plugins/integration_test/ios"
+  sy_rtc_flutter_sdk:
+    :path: ".symlinks/plugins/sy_rtc_flutter_sdk/ios"
+
+SPEC CHECKSUMS:
+  Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
+  GoogleWebRTC: 4d261187b30512efdb711d21fa961a6adf138717
+  integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
+  sy_rtc_flutter_sdk: 9fbe8314bdc148820596f1b916a54d68a6b42913
+
+PODFILE CHECKSUM: 1e6342b23ac33c0790074bb30a83f3659383bfd8
+
+COCOAPODS: 1.16.2

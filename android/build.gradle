@@ -67,9 +67,25 @@ android {
 
 dependencies {
     // 依赖 Android SDK（从 JitPack）
-    // 注意：用户需要在应用层（android/app/build.gradle）手动添加此依赖
-    // 因为 Flutter 插件不能直接依赖外部库，需要在应用层配置
-    // 用户需要添加：implementation 'com.github.carlcy:sy-rtc-android-sdk:v1.0.4'
+    // 说明：Flutter 插件可以直接声明依赖，这样用户无需在应用层手动添加依赖，避免集成出错。
+    def findLocalAar = { File startDir ->
+        def dir = startDir
+        while (dir != null) {
+            def candidate = new File(dir, "rtc-android-sdk/build/outputs/aar/sy-rtc-android-sdk-release.aar")
+            if (candidate.exists()) return candidate
+            dir = dir.parentFile
+        }
+        return null
+    }
+
+    def localAar = findLocalAar(projectDir)
+    if (localAar != null) {
+        // 注意：Flutter 插件自身是 AAR，AGP 不允许把“直接本地 aar 依赖”打进另一个 AAR（会导致产物损坏）。
+        // 这里使用 compileOnly 仅用于编译期；运行期由宿主 App 提供 SDK 依赖（JitPack 或本地 AAR）。
+        compileOnly(files(localAar))
+    } else {
+        compileOnly("com.github.carlcy:sy-rtc-android-sdk:v1.0.4")
+    }
     
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")

@@ -21,6 +21,7 @@ class SyRtcEngine {
   // 兼容：部分原生实现会把事件发送到单独的 MethodChannel
   static const MethodChannel _eventsChannel = MethodChannel('sy_rtc_flutter_sdk/events');
   static final SyRtcEngine _instance = SyRtcEngine._internal();
+  static bool _methodHandlerRegistered = false;
   
   SyRtcEventHandler? _eventHandler;
   final StreamController<SyRtcEvent> _eventController = StreamController<SyRtcEvent>.broadcast();
@@ -28,8 +29,19 @@ class SyRtcEngine {
   factory SyRtcEngine() => _instance;
   
   SyRtcEngine._internal() {
+    // 注意：不要在构造期注册 setMethodCallHandler（单测/纯 Dart VM 下 BinaryMessenger 可能未初始化）
+  }
+
+  void _ensureMethodHandlerRegistered() {
+    if (_methodHandlerRegistered) return;
     _channel.setMethodCallHandler(_handleMethodCall);
     _eventsChannel.setMethodCallHandler(_handleMethodCall);
+    _methodHandlerRegistered = true;
+  }
+
+  Future<T?> _invoke<T>(String method, [dynamic arguments]) async {
+    _ensureMethodHandlerRegistered();
+    return _channel.invokeMethod<T>(method, arguments);
   }
 
   /// 初始化引擎
@@ -40,7 +52,7 @@ class SyRtcEngine {
   /// - ws://47.105.48.196/ws/signaling
   /// - wss://your-domain.com/ws/signaling
   Future<void> init(String appId, {String? apiBaseUrl, String? signalingUrl}) async {
-    await _channel.invokeMethod('init', {
+    await _invoke<void>('init', {
       'appId': appId,
       'apiBaseUrl': apiBaseUrl,
       'signalingUrl': signalingUrl,
@@ -61,7 +73,7 @@ class SyRtcEngine {
       // 通过MethodChannel让原生层处理HTTP请求
       // 原生层会调用后端API: GET {apiBaseUrl}/api/rtc/features/{appId}
       // 返回格式: {"features": ["voice", "live"]}
-      await _channel.invokeMethod('checkFeatures', {
+      await _invoke<void>('checkFeatures', {
         'appId': appId,
         'apiBaseUrl': apiBaseUrl,
       });

@@ -10,6 +10,9 @@ public protocol SyRtcEventHandler: AnyObject {
     
     /// 音量指示回调
     func onVolumeIndication(speakers: [SyVolumeInfo])
+
+    /// 错误回调（可选）
+    func onError(code: Int, message: String)
 }
 
 /// 音量信息
@@ -23,3 +26,6 @@ public struct SyVolumeInfo {
     }
 }
 
+public extension SyRtcEventHandler {
+    func onError(code: Int, message: String) {}
+}
