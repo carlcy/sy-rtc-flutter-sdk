@@ -745,9 +745,14 @@ class SyRtcEngine {
   // ==================== 旁路推流 ====================
 
   /// 开始旁路推流
+  /// 
+  /// [url] 推流地址。如果为空字符串，后端会自动生成我们服务器的RTMP地址
+  /// 格式：rtmp://server-ip:1935/live/{appId}_{channelId}
+  /// 
+  /// 也可以传入第三方CDN的推流地址（如抖音、快手等）
   Future<void> startRtmpStreamWithTranscoding(String url, SyLiveTranscoding transcoding) async {
     await _channel.invokeMethod('startRtmpStreamWithTranscoding', {
-      'url': url,
+      'url': url, // 如果为空，后端会自动生成我们服务器的RTMP地址
       'width': transcoding.width,
       'height': transcoding.height,
       'videoBitrate': transcoding.videoBitrate,

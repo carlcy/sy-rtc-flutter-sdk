@@ -1,3 +1,49 @@
+## 1.0.6
+
+### 重大更新
+- ✅ **RTMP服务器集成**：完整的RTMP服务器部署和鉴权机制
+- ✅ **自动生成推流地址**：SDK支持自动生成RTMP推流地址，无需手动配置
+- ✅ **完整鉴权机制**：推流和播放双重鉴权，确保不同AppId的流完全隔离
+- ✅ **后端集成文档**：完整的后端集成指南和API参考文档
+
+### 更新内容
+
+#### Flutter SDK
+- ✅ 支持 `startRtmpStreamWithTranscoding` 传入空字符串，自动使用后端生成的RTMP地址
+- ✅ 更新文档说明，明确Token获取流程
+
+#### Android SDK
+- ✅ 支持 `startRtmpStreamWithTranscoding` 传入空字符串，自动使用后端生成的RTMP地址
+- ✅ 版本号更新至 1.0.6
+
+#### iOS SDK
+- ✅ 支持 `startRtmpStreamWithTranscoding` 传入空字符串，自动使用后端生成的RTMP地址
+- ✅ 版本号更新至 1.0.6
+
+#### 用户端前端
+- ✅ 文档更新：添加后端集成指南和API参考文档标签页
+- ✅ 导航栏修复：首页和文档不再同时高亮
+- ✅ 文档完善：添加完整的SDK API文档，直播和语聊分开
+
+#### 后端服务
+- ✅ **rtc-service**：新增RTMP鉴权服务（RtmpAuthController、RtmpAuthService、RtmpUrlService）
+- ✅ **rtc-service**：新增获取推流和播放地址接口（`GET /api/rtc/live/stream-urls`）
+- ✅ **rtc-service**：自动生成RTMP地址功能（如果rtmpUrls为空）
+- ✅ **RTMP服务器**：完整的SRS配置，支持HTTP回调鉴权
+- ✅ **RTMP服务器**：流名称格式为 `{appId}_{channelId}`，确保不同AppId的流隔离
+
+### 重要提示
+- **RTMP服务器**：已集成到部署脚本，自动部署SRS RTMP服务器
+- **鉴权机制**：推流和播放都需要通过鉴权，确保安全性
+- **Token获取**：SDK的Token必须从你的后端服务器获取，不能直接在前端调用SY RTC的API
+- **后端集成**：请参考 `BACKEND_INTEGRATION_GUIDE.md` 和 `API_REFERENCE.md` 完成后端集成
+
+### 升级说明
+1. **SDK升级**：更新Flutter/Android/iOS SDK到1.0.6版本
+2. **后端部署**：重新部署 `rtc-service` 模块（包含RTMP鉴权功能）
+3. **RTMP服务器**：运行 `./deploy.sh` 自动部署RTMP服务器
+4. **文档更新**：查看 `BACKEND_INTEGRATION_GUIDE.md` 了解完整的后端集成流程
+
 ## 1.0.5
 
 ### 重大更新
