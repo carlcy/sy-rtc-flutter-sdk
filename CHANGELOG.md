@@ -1,3 +1,25 @@
+## 1.2.0
+
+### 版本统一与示例完善
+
+- **版本**：Flutter / Android / iOS SDK 及示例统一为 **1.2.0**。
+- **Flutter 示例**：
+  - 新增配置页：API 基础 URL、信令 URL、AppId、可选 JWT。
+  - 新增 Token 拉取：通过 `POST /api/rtc/token` 获取 RTC Token（需配置 JWT）。
+  - 主流程：保存并初始化 → 拉取 Token / 手动输入 → 加入/离开频道、静音、直播控制。
+  - 示例版本号：`1.2.0+0`；README 补充 Android/iOS 打包与 NDK 问题说明。
+- **Android 示例构建**：AGP 8.3、Gradle 8.7，满足 Flutter 最低要求；若 NDK 报错请按 README 处理。
+- **iOS 构建**：`flutter build ios --no-codesign` 与 `flutter run` 已验证通过（建议先 `flutter clean`）。
+- **发布**：各 SDK 与 Demo 中引用版本均已更新为 1.2.0，并更新版本说明与发布指南。
+
+### 升级说明
+
+1. 更新 Flutter 依赖：`sy_rtc_flutter_sdk: ^1.2.0`（或 `path: ../` 使用本地）。
+2. 更新 Android：`com.github.carlcy:sy-rtc-android-sdk:v1.2.0`。
+3. 更新 iOS：`pod 'SyRtcSDK', '~> 1.2.0'` 或 SPM 选择 1.2.0。
+
+---
+
 ## 1.0.6
 
 ### 重大更新

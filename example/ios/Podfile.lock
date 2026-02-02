@@ -3,7 +3,7 @@ PODS:
   - GoogleWebRTC (1.1.32000)
   - integration_test (0.0.1):
     - Flutter
-  - sy_rtc_flutter_sdk (0.1.2):
+  - sy_rtc_flutter_sdk (1.2.0):
     - Flutter
     - GoogleWebRTC
 
@@ -25,10 +25,10 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/sy_rtc_flutter_sdk/ios"
 
 SPEC CHECKSUMS:
-  Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   GoogleWebRTC: 4d261187b30512efdb711d21fa961a6adf138717
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
-  sy_rtc_flutter_sdk: 9fbe8314bdc148820596f1b916a54d68a6b42913
+  sy_rtc_flutter_sdk: 3a82a9a1f5d547105dbbd1eac3160bdfdc2b7e20
 
 PODFILE CHECKSUM: 1e6342b23ac33c0790074bb30a83f3659383bfd8
 

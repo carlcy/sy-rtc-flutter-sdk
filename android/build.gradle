@@ -84,7 +84,7 @@ dependencies {
         // 这里使用 compileOnly 仅用于编译期；运行期由宿主 App 提供 SDK 依赖（JitPack 或本地 AAR）。
         compileOnly(files(localAar))
     } else {
-        compileOnly("com.github.carlcy:sy-rtc-android-sdk:v1.0.5")
+        compileOnly("com.github.carlcy:sy-rtc-android-sdk:v1.2.0")
     }
     
     testImplementation("org.jetbrains.kotlin:kotlin-test")

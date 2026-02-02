@@ -133,6 +133,9 @@ internal class SyRtcEngineImpl {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             request.setValue(self?.appId ?? "", forHTTPHeaderField: "X-App-Id")
+            if let uid = self?.currentUid, !uid.isEmpty {
+                request.setValue(uid, forHTTPHeaderField: "X-Uid")
+            }
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
             URLSession.shared.dataTask(with: request) { data, resp, err in
@@ -225,7 +228,8 @@ internal class SyRtcEngineImpl {
         switch type {
         case "user-list":
             guard let localUid = currentUid else { return }
-            let users = (data["users"] as? [String]) ?? []
+            // 服务端 data.users 可能是 [String] 或 JSON 反序列化后的 [Any]，需兼容
+            let users: [String] = (data["users"] as? [String]) ?? (data["users"] as? [Any])?.compactMap { $0 as? String } ?? []
             for u in users where u != localUid {
                 if peerConnections[u] == nil { _ = createPeerConnection(remoteUid: u) }
                 if shouldInitiateOffer(localUid: localUid, remoteUid: u) {
@@ -287,6 +291,9 @@ internal class SyRtcEngineImpl {
                 pendingLocalIceByUid.removeValue(forKey: uid)
                 pendingRemoteIceByUid.removeValue(forKey: uid)
             }
+        case "error":
+            let msg = (data["error"] as? String) ?? "信令错误"
+            eventHandler?.onError(code: 1002, message: msg)
         default:
             break
         }

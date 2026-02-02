@@ -71,7 +71,7 @@ class SyRtcEngine {
   Future<void> _checkFeatures(String appId, String apiBaseUrl) async {
     try {
       // 通过MethodChannel让原生层处理HTTP请求
-      // 原生层会调用后端API: GET {apiBaseUrl}/api/rtc/features/{appId}
+      // 原生层会调用后端API: GET {apiBaseUrl}/api/rtc/feature/{appId}
       // 返回格式: {"features": ["voice", "live"]}
       await _invoke<void>('checkFeatures', {
         'appId': appId,
