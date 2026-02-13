@@ -41,6 +41,15 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
         result(FlutterError(code: "INVALID_ARGUMENT", message: "appId is required", details: nil))
       }
       
+    case "setApiAuthToken":
+      if let args = call.arguments as? [String: Any],
+         let token = args["token"] as? String {
+        engine?.setApiAuthToken(token)
+        result(true)
+      } else {
+        result(false)
+      }
+      
     case "checkFeatures":
       if let args = call.arguments as? [String: Any],
          let appId = args["appId"] as? String,
@@ -706,5 +715,23 @@ extension SyRtcFlutterSdkPlugin: SyRtcEventHandler {
 
   public func onError(code: Int, message: String) {
     eventChannel?.invokeMethod("onError", arguments: ["errCode": code, "errMsg": message])
+  }
+
+  public func onStreamMessage(uid: String, streamId: Int, data: Data) {
+    eventChannel?.invokeMethod("onStreamMessage", arguments: [
+      "uid": uid,
+      "streamId": streamId,
+      "data": [UInt8](data)
+    ])
+  }
+
+  public func onStreamMessageError(uid: String, streamId: Int, code: Int, missed: Int, cached: Int) {
+    eventChannel?.invokeMethod("onStreamMessageError", arguments: [
+      "uid": uid,
+      "streamId": streamId,
+      "code": code,
+      "missed": missed,
+      "cached": cached
+    ])
   }
 }

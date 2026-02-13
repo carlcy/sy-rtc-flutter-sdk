@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'sy_rtc_event_handler.dart';
 import 'sy_rtc_events.dart';
@@ -62,6 +63,14 @@ class SyRtcEngine {
     if (apiBaseUrl != null && apiBaseUrl.isNotEmpty) {
       await _checkFeatures(appId, apiBaseUrl);
     }
+  }
+
+  /// 设置后端 API 认证 Token（JWT）
+  ///
+  /// 用于调用 /api/rtc/live/* 等需要登录认证的接口。
+  /// 注意：join() 的 token 是 RTC Token，与该 JWT 不同。
+  Future<void> setApiAuthToken(String token) async {
+    await _channel.invokeMethod('setApiAuthToken', {'token': token});
   }
   
   /// 检查功能权限
@@ -802,8 +811,9 @@ class SyRtcEngine {
   }
 
   Future<dynamic> _handleMethodCall(MethodCall call) async {
-    switch (call.method) {
-      case 'onUserJoined':
+    try {
+      switch (call.method) {
+        case 'onUserJoined':
         final event = SyUserJoinedEvent(
           uid: call.arguments['uid'] as String,
           elapsed: call.arguments['elapsed'] as int? ?? 0,
@@ -944,6 +954,7 @@ class SyRtcEngine {
         final data = List<int>.from(call.arguments['data'] ?? []);
         final event = SyStreamMessageEvent(uid: uid, streamId: streamId, data: data);
         _eventController.add(event);
+        _eventHandler?.onStreamMessage?.call(uid, streamId, data);
         break;
       case 'onStreamMessageError':
         final uid = call.arguments['uid'] as String;
@@ -959,6 +970,7 @@ class SyRtcEngine {
           cached: cached,
         );
         _eventController.add(event);
+        _eventHandler?.onStreamMessageError?.call(uid, streamId, code, missed, cached);
         break;
       case 'onFirstRemoteVideoDecoded':
         final uid = call.arguments['uid'] as String;
@@ -1004,8 +1016,18 @@ class SyRtcEngine {
         final errMsg = call.arguments['errMsg'] as String? ?? 'Unknown error';
         final event = SyErrorEvent(errCode: errCode, errMsg: errMsg);
         _eventController.add(event);
+        _eventHandler?.onError?.call(errCode, errMsg);
         break;
+        default:
+          break;
+      }
+    } catch (e, st) {
+      debugPrint('SyRtcEngine event error: ${call.method} $e $st');
+      final errMsg = e.toString();
+      _eventController.add(SyErrorEvent(errCode: -1, errMsg: errMsg));
+      _eventHandler?.onError?.call(-1, errMsg);
     }
+    return null;
   }
 
   /// 释放资源

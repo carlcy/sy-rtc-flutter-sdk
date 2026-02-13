@@ -20,8 +20,9 @@ class TokenService {
     int expireHours = 24,
   }) async {
     final jwt = config.jwt;
-    if (jwt == null || jwt.isEmpty) {
-      throw Exception('未配置 JWT，请在配置页填写 JWT 或手动输入 Token');
+    final appSecret = config.appSecret;
+    if ((jwt == null || jwt.isEmpty) && (appSecret == null || appSecret.isEmpty)) {
+      throw Exception('未配置 JWT 或 AppSecret，请在配置页填写（demo 可用 AppSecret）');
     }
 
     final uri = Uri.parse(config.tokenEndpoint).replace(
@@ -32,13 +33,20 @@ class TokenService {
       },
     );
 
+    final headers = <String, String>{
+      'X-App-Id': config.appId,
+      'Content-Type': 'application/json',
+    };
+    if (jwt != null && jwt.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $jwt';
+    }
+    if (appSecret != null && appSecret.isNotEmpty) {
+      headers['X-App-Secret'] = appSecret;
+    }
+
     final response = await http.post(
       uri,
-      headers: {
-        'Authorization': 'Bearer $jwt',
-        'X-App-Id': config.appId,
-        'Content-Type': 'application/json',
-      },
+      headers: headers,
     );
 
     if (response.statusCode != 200) {
@@ -53,7 +61,7 @@ class TokenService {
 
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     final code = json['code'] as int?;
-    if (code != 200) {
+    if (code != 0) {
       final msg = json['msg'] as String? ?? '未知错误';
       throw Exception('获取 Token 失败: $msg');
     }

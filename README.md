@@ -140,6 +140,13 @@ await engine.join(
 );
 ```
 
+### 5.1 设置后端 API 认证 Token（用于直播等接口）
+
+```dart
+// 用于调用 /api/rtc/live/* 等需要登录认证的接口
+await engine.setApiAuthToken(jwt);
+```
+
 **房间列表与在线人数（对标声网）**：业务后端可调用以下接口供客户端展示房间列表、统计与热度：
 - `GET /api/room/active`（Header: X-App-Id）— 活跃房间列表，含 `currentSeats`、`maxSeats`、`heat`
 - `GET /api/room/statistics`（Header: X-App-Id）— 总房间数、活跃数、当前在线总人数

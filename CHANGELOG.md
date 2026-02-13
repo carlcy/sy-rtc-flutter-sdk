@@ -1,3 +1,22 @@
+## 1.3.0
+
+### 语音功能修复与三端版本统一
+
+- **版本**：Flutter / Android / iOS 三端统一为 **1.3.0**；Flutter 插件内 `android/build.gradle`、`ios/sy_rtc_flutter_sdk.podspec` 已同步为 1.3.0，Android 依赖为 `sy-rtc-android-sdk:v1.3.0`。
+- **语音相关修复与优化**：
+  - **Android**：`enableLocalAudio`/`muteLocalAudio` 仅控制 WebRTC `localAudioTrack`，不再误操作 `AudioRecord`；`enableAudio`/`disableAudio` 改为控制 `localAudioTrack`，与语音推流一致；`join()` 增加 channelId/uid/token 空校验并回调 `onError`。
+  - **iOS**：`muteLocalAudio` 实际生效（`localAudioTrack?.isEnabled = !muted`）；`enableLocalAudio` 同时设置 `localAudioTrack?.isEnabled`；`enableAudio`/`disableAudio` 同步设置 `localAudioTrack`；`join()` 增加参数空校验并回调 `onError(1000, ...)`。
+  - **Flutter**：事件处理 `_handleMethodCall` 增加 try/catch，解析异常时推送 `SyErrorEvent` 并回调 `onError`，避免崩溃；补全 default 分支与返回值。
+- **发布**：各 SDK 与 Flutter 示例版本已更新为 1.3.0；建议先提交代码再打 tag 发版。
+
+### 升级说明
+
+1. Flutter：`sy_rtc_flutter_sdk: ^1.3.0`（或 `path` 使用本地）。
+2. Android：`com.github.carlcy:sy-rtc-android-sdk:v1.3.0`。
+3. iOS：`pod 'SyRtcSDK', '~> 1.3.0'` 或 SPM 选择 1.3.0。
+
+---
+
 ## 1.2.0
 
 ### 版本统一与示例完善

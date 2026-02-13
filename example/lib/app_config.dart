@@ -7,6 +7,7 @@ class AppConfig {
     required this.signalingUrl,
     required this.appId,
     this.jwt,
+    this.appSecret,
   });
 
   /// API 基础 URL，如 https://api.example.com（不要末尾斜杠）
@@ -21,6 +22,9 @@ class AppConfig {
   /// 用户 JWT，用于调用 POST /api/rtc/token 获取 RTC Token（可选，不填则需手动输入 Token）
   final String? jwt;
 
+  /// AppSecret（仅用于 demo/测试，不建议在生产客户端明文保存）
+  final String? appSecret;
+
   String get tokenEndpoint => '$apiBaseUrl/api/rtc/token';
 
   AppConfig copyWith({
@@ -28,12 +32,14 @@ class AppConfig {
     String? signalingUrl,
     String? appId,
     String? jwt,
+    String? appSecret,
   }) {
     return AppConfig(
       apiBaseUrl: apiBaseUrl ?? this.apiBaseUrl,
       signalingUrl: signalingUrl ?? this.signalingUrl,
       appId: appId ?? this.appId,
       jwt: jwt ?? this.jwt,
+      appSecret: appSecret ?? this.appSecret,
     );
   }
 }

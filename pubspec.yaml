@@ -1,6 +1,6 @@
 name: sy_rtc_flutter_sdk
 description: "SY RTC Flutter SDK - A Flutter plugin for real-time audio and video communication."
-version: 1.2.0
+version: 1.3.0
 homepage: https://github.com/carlcy/sy_rtc_flutter_sdk
 repository: https://github.com/carlcy/sy_rtc_flutter_sdk
 

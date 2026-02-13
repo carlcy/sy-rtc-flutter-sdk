@@ -68,6 +68,12 @@ public class SyRtcEngine {
     public func setApiBaseUrl(_ url: String) {
         impl?.setApiBaseUrl(url)
     }
+
+    /// 设置后端 API 认证 Token（JWT）
+    /// 用于调用 /api/rtc/live/* 等需要登录认证的接口
+    public func setApiAuthToken(_ token: String) {
+        impl?.setApiAuthToken(token)
+    }
     
     /// 启用视频模块
     public func enableVideo() {
@@ -352,4 +358,3 @@ public class SyRtcEngine {
         appId = nil
     }
 }
-

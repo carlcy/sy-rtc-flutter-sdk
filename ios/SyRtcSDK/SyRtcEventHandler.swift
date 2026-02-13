@@ -13,6 +13,12 @@ public protocol SyRtcEventHandler: AnyObject {
 
     /// 错误回调（可选）
     func onError(code: Int, message: String)
+
+    /// 数据流消息回调（可选）
+    func onStreamMessage(uid: String, streamId: Int, data: Data)
+
+    /// 数据流消息错误回调（可选）
+    func onStreamMessageError(uid: String, streamId: Int, code: Int, missed: Int, cached: Int)
 }
 
 /// 音量信息
@@ -28,4 +34,6 @@ public struct SyVolumeInfo {
 
 public extension SyRtcEventHandler {
     func onError(code: Int, message: String) {}
+    func onStreamMessage(uid: String, streamId: Int, data: Data) {}
+    func onStreamMessageError(uid: String, streamId: Int, code: Int, missed: Int, cached: Int) {}
 }

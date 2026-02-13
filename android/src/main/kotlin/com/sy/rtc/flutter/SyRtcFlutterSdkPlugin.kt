@@ -90,6 +90,11 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
           result.error("INVALID_ARGUMENT", "feature is required", null)
         }
       }
+      "setApiAuthToken" -> {
+        val token = call.argument<String>("token") ?: ""
+        engine?.setApiAuthToken(token)
+        result.success(true)
+      }
       "join" -> {
         val channelId = call.argument<String>("channelId")
         val uid = call.argument<String>("uid")
@@ -539,6 +544,30 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
 
       override fun onError(code: Int, message: String) {
         eventChannel?.invokeMethod("onError", mapOf("errCode" to code, "errMsg" to message))
+      }
+
+      override fun onStreamMessage(uid: String, streamId: Int, data: ByteArray) {
+        eventChannel?.invokeMethod(
+          "onStreamMessage",
+          mapOf(
+            "uid" to uid,
+            "streamId" to streamId,
+            "data" to data.toList()
+          )
+        )
+      }
+
+      override fun onStreamMessageError(uid: String, streamId: Int, code: Int, missed: Int, cached: Int) {
+        eventChannel?.invokeMethod(
+          "onStreamMessageError",
+          mapOf(
+            "uid" to uid,
+            "streamId" to streamId,
+            "code" to code,
+            "missed" to missed,
+            "cached" to cached
+          )
+        )
       }
     }
   }

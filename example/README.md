@@ -1,14 +1,15 @@
 # SY RTC Flutter SDK 示例
 
-本示例演示如何使用 `sy_rtc_flutter_sdk` 进行语聊房与直播相关功能测试。
+本示例演示如何使用 `sy_rtc_flutter_sdk` 进行语聊房与直播相关功能测试（以语音功能为主）。
 
 ## 功能说明
 
-- **配置**：填写 API 基础 URL、信令 URL、AppId，可选填写 JWT（用于拉取 RTC Token）。
+- **配置**：填写 API 基础 URL、信令 URL、AppId，可选填写 JWT（用于后端认证/直播）与 AppSecret（demo 用）。
 - **初始化**：点击「保存并初始化」后，SDK 会请求后端功能权限（语聊/直播）。
-- **拉取 Token**：若已填 JWT，可点击「拉取 Token」从后端 `POST /api/rtc/token` 获取 RTC Token；否则需手动粘贴 Token。
+- **拉取 Token**：若已填 JWT 或 AppSecret，可点击「拉取 Token」从后端 `POST /api/rtc/token` 获取 RTC Token；否则需手动粘贴 Token。
 - **加入/离开频道**：使用频道 ID、用户 ID 和 Token 加入或离开 RTC 频道。
 - **静音/取消静音**：在频道内控制本地麦克风。
+- **语音增强**：扬声器切换、角色切换、远端静音、音频 Profile/Scenario、音频质量、音量调节、混音/音效/录音、数据流消息等。
 - **直播控制面板**：进入直播控制页，配置 RTMP 推流地址、布局与转码参数，进行开播/停播。
 
 ## 环境要求
@@ -95,9 +96,12 @@ flutter run -t sy_rtc_flutter_sdk/example/lib/main.dart -C sy_rtc_flutter_sdk/ex
 - **API 基础 URL**：与后端约定，如 `https://your-rtc-server.com`（不要末尾 `/`）。
 - **信令 URL**：WebSocket 地址，如 `wss://your-rtc-server.com/ws/signaling`。
 - **AppId**：后端分配的应用 ID。
-- **JWT**：用户登录后获得的 Bearer Token，用于调用 `POST /api/rtc/token` 获取 RTC Token；不填则需在「RTC Token」输入框手动粘贴 Token。
+- **JWT**：用户登录后获得的 Bearer Token，用于调用 `POST /api/rtc/token` 获取 RTC Token，或用于直播认证。
+- **AppSecret（仅demo）**：后端应用密钥，用于 demo 环境获取 RTC Token。生产环境不要在客户端明文保存。
 
 后端 RTC Token 接口见项目根目录 `API_REFERENCE.md`（`POST /api/rtc/token`）。
+
+如需快速体验，可使用仓库内的 `rtc-demo-backend` 作为 demo 后端，配置 `RTC_API_BASE_URL / RTC_APP_ID / RTC_APP_SECRET` 后即可提供 `token/feature` 接口。
 
 ## 权限
 
