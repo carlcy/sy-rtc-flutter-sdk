@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'sy_rtc_flutter_sdk'
-  s.version          = '1.3.0'
+  s.version          = '1.3.1'
   s.summary          = 'SY RTC Flutter SDK - A Flutter plugin for real-time audio and video communication'
   s.description      = <<-DESC
 SY RTC Flutter SDK provides real-time audio and video communication capabilities for Flutter applications.

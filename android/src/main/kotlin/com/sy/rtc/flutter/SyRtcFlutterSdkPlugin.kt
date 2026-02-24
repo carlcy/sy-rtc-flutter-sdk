@@ -37,6 +37,7 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
   }
 
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
+    try {
     when (call.method) {
       "init" -> {
         val appId = call.argument<String>("appId")
@@ -47,30 +48,33 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
           return
         }
 
-        engine = RtcEngine.create()
-        val context = flutterContext
-        if (context == null) {
-          result.error("INVALID_ARGUMENT", "context is required", null)
-          return
-        }
+        try {
+          engine = RtcEngine.create()
+          val context = flutterContext
+          if (context == null) {
+            result.error("INIT_ERROR", "context is required", null)
+            return
+          }
 
-        engine?.init(appId, context)
-        if (signalingUrl != null && signalingUrl.isNotEmpty()) {
-          engine?.setSignalingServerUrl(signalingUrl)
-        }
-        apiBaseUrl = apiUrl
-        if (apiUrl != null && apiUrl.isNotEmpty()) {
-          engine?.setApiBaseUrl(apiUrl)
-        }
+          engine?.init(appId, context)
+          if (signalingUrl != null && signalingUrl.isNotEmpty()) {
+            engine?.setSignalingServerUrl(signalingUrl)
+          }
+          apiBaseUrl = apiUrl
+          if (apiUrl != null && apiUrl.isNotEmpty()) {
+            engine?.setApiBaseUrl(apiUrl)
+          }
 
-        // 如果提供了API URL，查询功能权限
-        if (apiUrl != null && apiUrl.isNotEmpty()) {
-          checkFeatures(appId, apiUrl)
-        } else {
-          // 默认只有语聊功能
-          appFeatures = mutableSetOf("voice")
+          if (apiUrl != null && apiUrl.isNotEmpty()) {
+            checkFeatures(appId, apiUrl)
+          } else {
+            appFeatures = mutableSetOf("voice")
+          }
+          result.success(true)
+        } catch (t: Throwable) {
+          android.util.Log.e("SyRtcFlutterSdk", "init failed", t)
+          result.error("INIT_ERROR", "SDK init failed: ${t.message}", t.stackTraceToString())
         }
-        result.success(true)
       }
       "checkFeatures" -> {
         val appId = call.argument<String>("appId")
@@ -524,6 +528,10 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
       else -> {
         result.notImplemented()
       }
+    }
+    } catch (t: Throwable) {
+      android.util.Log.e("SyRtcFlutterSdk", "onMethodCall error: ${call.method}", t)
+      try { result.error("NATIVE_ERROR", "${call.method} failed: ${t.message}", t.stackTraceToString()) } catch (_: Throwable) {}
     }
   }
 

@@ -1,3 +1,15 @@
+## 1.3.1
+
+### Fixes
+
+- **Fix**: Android crash on init due to missing `BLUETOOTH_CONNECT` permission on Android 12+ (asynchronous `BluetoothHeadset.getConnectedDevices()` in `initializeAudioDevices`)
+- **Fix**: Android release build crash due to R8/ProGuard stripping `org.webrtc.*` JNI classes (added consumer ProGuard rules)
+- **Fix**: Improved error handling in Android native plugin with `try-catch(Throwable)` to prevent unhandled native crashes
+- **Improvement**: iOS native demo now has a complete Xcode project with programmatic UI
+- **Improvement**: Android native demo updated to use local SDK AAR with Bluetooth permissions
+
+---
+
 ## 1.3.0
 
 ### 语音功能修复与三端版本统一

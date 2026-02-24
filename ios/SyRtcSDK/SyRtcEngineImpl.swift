@@ -61,7 +61,7 @@ internal class SyRtcEngineImpl {
 
     // 信令
     private var signalingClient: SyRtcSignalingClient?
-    private var signalingUrl: String = "ws://47.105.48.196/ws/signaling"
+    private var signalingUrl: String = "wss://syrtcapi.shengyuchenyao.cn/ws/signaling"
     private var apiBaseUrl: String?
     private var currentChannelId: String?
     private var currentUid: String?

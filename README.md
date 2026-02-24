@@ -358,7 +358,7 @@ Future<void> init(String appId, {String? apiBaseUrl, String? signalingUrl})
 await engine.init(
   'your_app_id',
   apiBaseUrl: 'https://api.example.com',
-  signalingUrl: 'ws://47.105.48.196/ws/signaling',
+  signalingUrl: 'wss://syrtcapi.shengyuchenyao.cn/ws/signaling',
 );
 ```
 
