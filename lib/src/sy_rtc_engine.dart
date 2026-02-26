@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'sy_rtc_event_handler.dart';
@@ -452,67 +451,56 @@ class SyRtcEngine {
 
   // ==================== 房间管理事件流 ====================
 
+  Stream<T> _streamOf<T extends SyRtcEvent>() =>
+      _eventController.stream.where((e) => e is T).cast<T>();
+
   /// 房间信息更新事件流
-  Stream<SyRoomInfoUpdatedEvent> get onRoomInfoUpdated =>
-      _eventController.stream.whereType<SyRoomInfoUpdatedEvent>();
+  Stream<SyRoomInfoUpdatedEvent> get onRoomInfoUpdated => _streamOf<SyRoomInfoUpdatedEvent>();
 
   /// 房间公告更新事件流
-  Stream<SyRoomNoticeUpdatedEvent> get onRoomNoticeUpdated =>
-      _eventController.stream.whereType<SyRoomNoticeUpdatedEvent>();
+  Stream<SyRoomNoticeUpdatedEvent> get onRoomNoticeUpdated => _streamOf<SyRoomNoticeUpdatedEvent>();
 
   /// 房间管理员变更事件流
-  Stream<SyRoomManagerUpdatedEvent> get onRoomManagerUpdated =>
-      _eventController.stream.whereType<SyRoomManagerUpdatedEvent>();
+  Stream<SyRoomManagerUpdatedEvent> get onRoomManagerUpdated => _streamOf<SyRoomManagerUpdatedEvent>();
 
   // ==================== 座位管理事件流 ====================
 
   /// 座位列表更新事件流（全量）
-  Stream<SySeatListUpdatedEvent> get onSeatListUpdated =>
-      _eventController.stream.whereType<SySeatListUpdatedEvent>();
+  Stream<SySeatListUpdatedEvent> get onSeatListUpdated => _streamOf<SySeatListUpdatedEvent>();
 
   /// 单个座位变更事件流
-  Stream<SySeatUpdatedEvent> get onSeatUpdated =>
-      _eventController.stream.whereType<SySeatUpdatedEvent>();
+  Stream<SySeatUpdatedEvent> get onSeatUpdated => _streamOf<SySeatUpdatedEvent>();
 
   /// 麦位申请事件流（房主/管理员收到）
-  Stream<SySeatRequestReceivedEvent> get onSeatRequestReceived =>
-      _eventController.stream.whereType<SySeatRequestReceivedEvent>();
+  Stream<SySeatRequestReceivedEvent> get onSeatRequestReceived => _streamOf<SySeatRequestReceivedEvent>();
 
   /// 麦位申请被处理事件流（申请者收到）
-  Stream<SySeatRequestHandledEvent> get onSeatRequestHandled =>
-      _eventController.stream.whereType<SySeatRequestHandledEvent>();
+  Stream<SySeatRequestHandledEvent> get onSeatRequestHandled => _streamOf<SySeatRequestHandledEvent>();
 
   /// 麦位邀请事件流（被邀请者收到）
-  Stream<SySeatInvitationReceivedEvent> get onSeatInvitationReceived =>
-      _eventController.stream.whereType<SySeatInvitationReceivedEvent>();
+  Stream<SySeatInvitationReceivedEvent> get onSeatInvitationReceived => _streamOf<SySeatInvitationReceivedEvent>();
 
   /// 麦位邀请被处理事件流（邀请者收到）
-  Stream<SySeatInvitationHandledEvent> get onSeatInvitationHandled =>
-      _eventController.stream.whereType<SySeatInvitationHandledEvent>();
+  Stream<SySeatInvitationHandledEvent> get onSeatInvitationHandled => _streamOf<SySeatInvitationHandledEvent>();
 
   // ==================== 用户管理事件流 ====================
 
   /// 用户被踢出房间事件流
-  Stream<SyUserKickedEvent> get onUserKicked =>
-      _eventController.stream.whereType<SyUserKickedEvent>();
+  Stream<SyUserKickedEvent> get onUserKicked => _streamOf<SyUserKickedEvent>();
 
   /// 用户被禁言事件流
-  Stream<SyUserMutedEvent> get onUserMuted =>
-      _eventController.stream.whereType<SyUserMutedEvent>();
+  Stream<SyUserMutedEvent> get onUserMuted => _streamOf<SyUserMutedEvent>();
 
   /// 用户被封禁事件流
-  Stream<SyUserBannedEvent> get onUserBanned =>
-      _eventController.stream.whereType<SyUserBannedEvent>();
+  Stream<SyUserBannedEvent> get onUserBanned => _streamOf<SyUserBannedEvent>();
 
   // ==================== 聊天 & 礼物事件流 ====================
 
   /// 房间消息事件流
-  Stream<SyRoomMessageEvent> get onRoomMessage =>
-      _eventController.stream.whereType<SyRoomMessageEvent>();
+  Stream<SyRoomMessageEvent> get onRoomMessage => _streamOf<SyRoomMessageEvent>();
 
   /// 礼物事件流
-  Stream<SyGiftReceivedEvent> get onGiftReceived =>
-      _eventController.stream.whereType<SyGiftReceivedEvent>();
+  Stream<SyGiftReceivedEvent> get onGiftReceived => _streamOf<SyGiftReceivedEvent>();
 
   // ==================== 音频路由控制 ====================
 
