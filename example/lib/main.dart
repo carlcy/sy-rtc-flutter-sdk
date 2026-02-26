@@ -46,10 +46,10 @@ class _InitPageState extends State<InitPage> {
   final List<String> _logs = [];
 
   final _apiBaseController = TextEditingController(
-    text: 'https://syrtcapi.shengyuchenyao.cn/demo-api',
+    text: 'http://47.105.48.196/demo-api',
   );
   final _signalingController = TextEditingController(
-    text: 'wss://syrtcapi.shengyuchenyao.cn/ws/signaling',
+    text: 'ws://47.105.48.196/ws/signaling',
   );
   final _appIdController = TextEditingController(text: 'APP1769003318261114285E3');
   final _appSecretController = TextEditingController(text: '524d401de4c34ad1b554f2b35fe74d6f4f8f7e55614146069b527c1f8799b488');

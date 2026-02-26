@@ -50,7 +50,7 @@ class SyRtcEngine {
   /// [appId] 应用ID
   /// [apiBaseUrl] API基础URL（可选，用于查询功能权限）
   /// [signalingUrl] 信令 WebSocket 地址（可选），例如：
-  /// - wss://syrtcapi.shengyuchenyao.cn/ws/signaling
+  /// - ws://47.105.48.196/ws/signaling
   /// - wss://your-domain.com/ws/signaling
   Future<void> init(String appId, {String? apiBaseUrl, String? signalingUrl}) async {
     await _invoke<void>('init', {

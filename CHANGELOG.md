@@ -1,3 +1,20 @@
+## 1.4.1
+
+### 修复
+
+- **iOS muteLocalAudio**：修复 Flutter 内嵌 iOS 端 muteLocalAudio 未实际控制音轨的问题
+- **麦位同步**：新用户加入房间后主动请求现有用户的麦位状态，确保看到正确的麦位信息
+- **类型安全**：修复频道消息中 seatIndex 可能因 JSON double/int 类型不匹配导致崩溃的问题
+- **Demo 地址**：所有 demo 和 SDK 默认地址改回 IP 直连（域名备案进行中）
+
+### 升级说明
+
+- Flutter：`sy_rtc_flutter_sdk: ^1.4.1`
+- Android：`com.sy.rtc:sy-rtc-android-sdk:1.4.1`
+- iOS：`pod 'SyRtcSDK', '~> 1.4.1'` 或 SPM tag `v1.4.1`
+
+---
+
 ## 1.4.0
 
 ### 新功能

@@ -122,7 +122,7 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
       switch (action) {
         case 'seat-take':
           final uid = data['uid'] as String;
-          final seatIndex = data['seatIndex'] as int;
+          final seatIndex = (data['seatIndex'] as num).toInt();
           final muted = data['muted'] as bool? ?? false;
           if (seatIndex >= 0 && seatIndex < _seats.length) {
             setState(() {
@@ -165,8 +165,13 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
             }
           });
           break;
+        case 'seat-sync-request':
+          _broadcastMySeatIfOnMic();
+          break;
       }
-    } catch (_) {}
+    } catch (e) {
+      _log('处理频道消息失败: $e');
+    }
   }
 
   void _broadcastSeatAction(Map<String, dynamic> data) {
@@ -243,6 +248,12 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
         _onlineUsers.add(uid);
       });
       _log('=== 已成功加入房间: $channelId (身份: 听众) ===');
+
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (_inRoom) {
+          _broadcastSeatAction({'action': 'seat-sync-request', 'uid': _myUid});
+        }
+      });
     } catch (e, st) {
       _log('!!! 加入房间失败: $e');
       _log('堆栈: ${st.toString().split('\n').take(5).join('\n')}');
