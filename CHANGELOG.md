@@ -1,3 +1,22 @@
+## 1.5.0
+
+### 新功能
+
+- **房间管理**：新增 `updateRoomInfo`、`setRoomNotice`、`setRoomManager` 方法和对应事件回调
+- **麦位管理**：新增完整麦位流程 — `takeSeat`、`leaveSeat`、`requestSeat`、`handleSeatRequest`、`inviteToSeat`、`handleSeatInvitation`、`kickFromSeat`、`lockSeat`/`unlockSeat`、`muteSeat`/`unmuteSeat`
+- **用户管理**：新增 `kickUser`、`muteUser`、`banUser` 方法和 `onUserKicked`、`onUserMuted`、`onUserBanned` 事件
+- **房间聊天**：新增 `sendRoomMessage`（支持 text/emoji/image/system/custom 类型）和 `onRoomMessage` 事件
+- **礼物系统**：新增 `sendGift` 方法和 `onGiftReceived` 事件
+- **结构化房间消息**：SDK 内部自动解析 `channel-message` 中的 `_sy_type: "room-msg"` 协议，分发到对应的事件流
+
+### 升级说明
+
+- Flutter：`sy_rtc_flutter_sdk: ^1.5.0`
+- Android：`com.sy.rtc:sy-rtc-android-sdk:1.5.0`
+- iOS：`pod 'SyRtcSDK', '~> 1.5.0'` 或 SPM tag `v1.5.0`
+
+---
+
 ## 1.4.1
 
 ### 修复
