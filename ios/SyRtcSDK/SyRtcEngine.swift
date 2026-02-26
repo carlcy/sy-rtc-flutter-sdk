@@ -322,6 +322,13 @@ public class SyRtcEngine {
         impl?.stopAudioRecording()
     }
 
+    // MARK: - 信令
+
+    /// 发送频道消息（广播给频道内所有用户）
+    public func sendChannelMessage(_ message: String) {
+        impl?.sendChannelMessage(message)
+    }
+
     // MARK: - 数据流
 
     public func createDataStream(reliable: Bool, ordered: Bool) -> Int {
@@ -354,6 +361,8 @@ public class SyRtcEngine {
     
     /// 释放资源
     public func release() {
+        impl?.release()
+        impl = nil
         eventHandler = nil
         appId = nil
     }

@@ -1,20 +1,90 @@
 import 'sy_rtc_events.dart';
 
 /// SY RTC事件处理器
+///
+/// 参照声网/即构标准 RTC SDK 设计，包含频道、音视频、网络等核心回调。
 class SyRtcEventHandler {
-  // ============ 核心事件 ============
+  /// 成功加入频道回调
+  final void Function(String channelId, String uid, int elapsed)?
+      onJoinChannelSuccess;
 
-  /// 用户加入回调
+  /// 离开频道回调
+  final void Function(SyRtcStats stats)? onLeaveChannel;
+
+  /// 重新加入频道成功回调
+  final void Function(String channelId, String uid, int elapsed)?
+      onRejoinChannelSuccess;
+
+  /// 远端用户加入回调
   final void Function(String uid, int elapsed)? onUserJoined;
 
-  /// 用户离开回调
+  /// 远端用户离开回调
   final void Function(String uid, String reason)? onUserOffline;
+
+  /// 网络连接状态变化回调
+  final void Function(SyConnectionState state, SyConnectionChangedReason reason)?
+      onConnectionStateChanged;
+
+  /// 网络质量回调
+  final void Function(String uid, SyNetworkQuality txQuality,
+      SyNetworkQuality rxQuality)? onNetworkQuality;
+
+  /// 通话统计信息回调（每 2 秒触发一次）
+  final void Function(SyRtcStats stats)? onRtcStats;
+
+  /// Token 即将过期回调（30秒前）
+  final void Function()? onTokenPrivilegeWillExpire;
+
+  /// Token 已过期回调
+  final void Function()? onRequestToken;
 
   /// 音量指示回调
   final void Function(List<Map<String, dynamic>> speakers)? onVolumeIndication;
 
-  /// 错误回调
-  final void Function(int code, String message)? onError;
+  /// 远端用户静音/取消静音回调
+  final void Function(String uid, bool muted)? onUserMuteAudio;
+
+  /// 本地音频状态变化回调
+  final void Function(SyLocalAudioStreamState state, SyLocalAudioStreamError error)?
+      onLocalAudioStateChanged;
+
+  /// 远端音频状态变化回调
+  final void Function(
+          String uid, SyRemoteAudioState state, SyRemoteAudioStateReason reason, int elapsed)?
+      onRemoteAudioStateChanged;
+
+  /// 本地视频状态变化回调
+  final void Function(SyLocalVideoStreamState state, SyLocalVideoStreamError error)?
+      onLocalVideoStateChanged;
+
+  /// 远端视频状态变化回调
+  final void Function(
+          String uid, SyRemoteVideoState state, SyRemoteVideoStateReason reason, int elapsed)?
+      onRemoteVideoStateChanged;
+
+  /// 首帧远端视频解码回调
+  final void Function(String uid, int width, int height, int elapsed)?
+      onFirstRemoteVideoDecoded;
+
+  /// 首帧远端视频渲染回调
+  final void Function(String uid, int width, int height, int elapsed)?
+      onFirstRemoteVideoFrame;
+
+  /// 视频尺寸变化回调
+  final void Function(String uid, int width, int height, int rotation)?
+      onVideoSizeChanged;
+
+  /// 音频路由变化回调
+  final void Function(int routing)? onAudioRoutingChanged;
+
+  /// 音频发布状态变化回调
+  final void Function(String channelId, SyStreamPublishState oldState,
+      SyStreamPublishState newState, int elapsed)? onAudioPublishStateChanged;
+
+  /// 音频订阅状态变化回调
+  final void Function(String channelId, String uid,
+      SyStreamSubscribeState oldState, SyStreamSubscribeState newState,
+      int elapsed)? onAudioSubscribeStateChanged;
 
   /// 数据流消息回调
   final void Function(String uid, int streamId, List<int> data)?
@@ -25,92 +95,38 @@ class SyRtcEventHandler {
           String uid, int streamId, int code, int missed, int cached)?
       onStreamMessageError;
 
-  /// 原始频道消息回调
+  /// 频道消息回调（底层信令通道，用于应用层自定义消息）
   final void Function(String uid, String message)? onChannelMessage;
 
-  // ============ 房间管理事件 ============
-
-  /// 房间信息更新
-  final void Function(String operatorUid, Map<String, dynamic> roomInfo)?
-      onRoomInfoUpdated;
-
-  /// 房间公告更新
-  final void Function(String operatorUid, String notice)? onRoomNoticeUpdated;
-
-  /// 房间管理员变更
-  final void Function(String uid, bool isManager, String operatorUid)?
-      onRoomManagerUpdated;
-
-  // ============ 座位管理事件 ============
-
-  /// 座位列表更新（全量）
-  final void Function(List<SySeatInfo> seats)? onSeatListUpdated;
-
-  /// 单个座位变更
-  final void Function(SySeatInfo seat, String operatorUid, SySeatAction action)?
-      onSeatUpdated;
-
-  /// 麦位申请（房主/管理员收到）
-  final void Function(String uid, int? seatIndex)? onSeatRequestReceived;
-
-  /// 麦位申请被处理（申请者收到）
-  final void Function(String operatorUid, bool approved, int? seatIndex)?
-      onSeatRequestHandled;
-
-  /// 麦位邀请（被邀请者收到）
-  final void Function(String operatorUid, int seatIndex)?
-      onSeatInvitationReceived;
-
-  /// 麦位邀请被处理（邀请者收到）
-  final void Function(String uid, bool accepted, int seatIndex)?
-      onSeatInvitationHandled;
-
-  // ============ 用户管理事件 ============
-
-  /// 用户被踢出房间
-  final void Function(String uid, String operatorUid)? onUserKicked;
-
-  /// 用户被禁言/解除禁言
-  final void Function(String uid, bool isMuted, String operatorUid)?
-      onUserMuted;
-
-  /// 用户被封禁/解除封禁
-  final void Function(String uid, bool isBanned, String operatorUid)?
-      onUserBanned;
-
-  // ============ 聊天 & 礼物 ============
-
-  /// 房间消息
-  final void Function(
-          String uid, SyRoomMessageType type, String content, Map<String, dynamic>? extra)?
-      onRoomMessage;
-
-  /// 收到礼物
-  final void Function(
-          String fromUid, String toUid, String giftId, int count, Map<String, dynamic>? extra)?
-      onGiftReceived;
+  /// 错误回调
+  final void Function(int code, String message)? onError;
 
   SyRtcEventHandler({
+    this.onJoinChannelSuccess,
+    this.onLeaveChannel,
+    this.onRejoinChannelSuccess,
     this.onUserJoined,
     this.onUserOffline,
+    this.onConnectionStateChanged,
+    this.onNetworkQuality,
+    this.onRtcStats,
+    this.onTokenPrivilegeWillExpire,
+    this.onRequestToken,
     this.onVolumeIndication,
-    this.onError,
+    this.onUserMuteAudio,
+    this.onLocalAudioStateChanged,
+    this.onRemoteAudioStateChanged,
+    this.onLocalVideoStateChanged,
+    this.onRemoteVideoStateChanged,
+    this.onFirstRemoteVideoDecoded,
+    this.onFirstRemoteVideoFrame,
+    this.onVideoSizeChanged,
+    this.onAudioRoutingChanged,
+    this.onAudioPublishStateChanged,
+    this.onAudioSubscribeStateChanged,
     this.onStreamMessage,
     this.onStreamMessageError,
     this.onChannelMessage,
-    this.onRoomInfoUpdated,
-    this.onRoomNoticeUpdated,
-    this.onRoomManagerUpdated,
-    this.onSeatListUpdated,
-    this.onSeatUpdated,
-    this.onSeatRequestReceived,
-    this.onSeatRequestHandled,
-    this.onSeatInvitationReceived,
-    this.onSeatInvitationHandled,
-    this.onUserKicked,
-    this.onUserMuted,
-    this.onUserBanned,
-    this.onRoomMessage,
-    this.onGiftReceived,
+    this.onError,
   });
 }

@@ -1,3 +1,34 @@
+## 2.0.0 (Breaking Change)
+
+### 架构调整
+
+SDK 重新定位为纯 RTC 传输层，移除所有业务逻辑，对齐声网/即构等主流 RTC SDK 设计。
+
+### 移除
+
+- **房间管理**：`updateRoomInfo`、`setRoomNotice`、`setRoomManager` 及相关事件
+- **麦位管理**：`takeSeat`、`leaveSeat`、`requestSeat`、`handleSeatRequest`、`inviteToSeat`、`handleSeatInvitation`、`kickFromSeat`、`lockSeat`/`unlockSeat`、`muteSeat`/`unmuteSeat` 及相关事件
+- **用户管理**：`kickUser`、`muteUser`、`banUser` 及 `onUserKicked`、`onUserMuted`、`onUserBanned`
+- **房间聊天**：`sendRoomMessage`、`onRoomMessage`
+- **礼物系统**：`sendGift`、`onGiftReceived`
+- **结构化消息解析**：`_sy_type: "room-msg"` 协议
+
+### 新增
+
+- **频道生命周期回调**：`onJoinChannelSuccess`、`onLeaveChannel`、`onRejoinChannelSuccess`
+- **连接与网络**：`onConnectionStateChanged`、`onNetworkQuality`、`onRtcStats`
+- **Token 管理**：`onTokenPrivilegeWillExpire`、`onRequestToken`、`renewToken()`
+- **音频状态**：`onLocalAudioStateChanged`、`onRemoteAudioStateChanged`、`onUserMuteAudio`、`onAudioRoutingChanged`、`onAudioPublishStateChanged`、`onAudioSubscribeStateChanged`
+- **视频状态**：`onLocalVideoStateChanged`、`onRemoteVideoStateChanged`、`onFirstRemoteVideoDecoded`、`onFirstRemoteVideoFrame`、`onVideoSizeChanged`
+- **数据流**：`createDataStream`、`sendStreamMessage`、`onStreamMessage`、`onStreamMessageError`
+- **事件处理器**：新增 `SyRtcEventHandler` 回调类 + `events` 广播流双模式
+
+### 迁移指南
+
+业务逻辑（礼物、公告、管理员、麦位申请等）请通过 `sendChannelMessage` 自定义 JSON 协议实现。
+
+---
+
 ## 1.5.0
 
 ### 新功能

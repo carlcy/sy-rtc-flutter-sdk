@@ -46,71 +46,128 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
   final Set<String> _onlineUsers = {};
   final List<String> _logs = [];
 
-  StreamSubscription<SyUserJoinedEvent>? _joinSub;
-  StreamSubscription<SyUserOfflineEvent>? _leaveSub;
-  StreamSubscription<SyVolumeIndicationEvent>? _volumeSub;
-  StreamSubscription<SyErrorEvent>? _errorSub;
-  StreamSubscription<SyChannelMessageEvent>? _channelMsgSub;
+  String _connectionState = '';
+  String _networkQualityStr = '';
+
+  StreamSubscription<SyRtcEvent>? _eventSub;
 
   @override
   void initState() {
     super.initState();
-    _setupListeners();
+    _setupEventHandler();
+    _setupStreamListeners();
   }
 
-  void _setupListeners() {
-    _joinSub = widget.engine.onUserJoined.listen((e) {
-      setState(() {
-        _onlineUsers.add(e.uid);
-      });
-      _log('用户加入: ${e.uid}');
-      _broadcastMySeatIfOnMic();
-    });
-
-    _leaveSub = widget.engine.onUserOffline.listen((e) {
-      setState(() {
-        _onlineUsers.remove(e.uid);
-        for (final seat in _seats) {
-          if (seat.uid == e.uid) {
-            seat.uid = null;
-            seat.isMuted = false;
-            seat.isSpeaking = false;
-            seat.volume = 0;
-          }
+  void _setupEventHandler() {
+    widget.engine.setEventHandler(SyRtcEventHandler(
+      onJoinChannelSuccess: (channelId, uid, elapsed) {
+        _log('✓ 加入频道成功: $channelId (uid=$uid, ${elapsed}ms)');
+      },
+      onLeaveChannel: (stats) {
+        _log('✓ 已离开频道 (时长: ${stats.duration}s)');
+      },
+      onRejoinChannelSuccess: (channelId, uid, elapsed) {
+        _log('✓ 重连成功: $channelId (${elapsed}ms)');
+      },
+      onConnectionStateChanged: (state, reason) {
+        if (!mounted) return;
+        setState(() => _connectionState = state.name);
+        _log('连接状态: ${state.name} (${reason.name})');
+      },
+      onNetworkQuality: (uid, tx, rx) {
+        if (!mounted) return;
+        final label = uid == '0' ? '本地' : uid;
+        setState(() => _networkQualityStr = '↑${tx.name} ↓${rx.name}');
+        if (tx.index >= 3 || rx.index >= 3) {
+          _log('⚠ 网络质量: $label ↑${tx.name} ↓${rx.name}');
         }
-      });
-      _log('用户离开: ${e.uid}');
-    });
-
-    _volumeSub = widget.engine.onVolumeIndication.listen((e) {
-      if (!mounted) return;
-      setState(() {
-        for (final seat in _seats) {
-          if (seat.uid != null) {
-            seat.isSpeaking = false;
-            seat.volume = 0;
-          }
-        }
-        for (final speaker in e.speakers) {
-          final uid = speaker['uid'] as String?;
-          final vol = speaker['volume'] as int? ?? 0;
-          if (uid == null) continue;
+      },
+      onRtcStats: (stats) {
+        // 统计信息可按需展示
+      },
+      onTokenPrivilegeWillExpire: () {
+        _log('⚠ Token即将过期，请刷新');
+      },
+      onRequestToken: () {
+        _log('⚠ Token已过期');
+      },
+      onUserJoined: (uid, elapsed) {
+        setState(() => _onlineUsers.add(uid));
+        _log('用户加入: $uid');
+        _broadcastMySeatIfOnMic();
+      },
+      onUserOffline: (uid, reason) {
+        setState(() {
+          _onlineUsers.remove(uid);
           for (final seat in _seats) {
             if (seat.uid == uid) {
-              seat.isSpeaking = vol > 10;
-              seat.volume = vol;
+              seat.uid = null;
+              seat.isMuted = false;
+              seat.isSpeaking = false;
+              seat.volume = 0;
             }
           }
-        }
-      });
-    });
+        });
+        _log('用户离开: $uid ($reason)');
+      },
+      onUserMuteAudio: (uid, muted) {
+        _log('$uid ${muted ? "静音" : "取消静音"}');
+        setState(() {
+          for (final seat in _seats) {
+            if (seat.uid == uid) seat.isMuted = muted;
+          }
+        });
+      },
+      onVolumeIndication: (speakers) {
+        if (!mounted) return;
+        setState(() {
+          for (final seat in _seats) {
+            if (seat.uid != null) {
+              seat.isSpeaking = false;
+              seat.volume = 0;
+            }
+          }
+          for (final speaker in speakers) {
+            final uid = speaker['uid'] as String?;
+            final vol = speaker['volume'] as int? ?? 0;
+            if (uid == null) continue;
+            for (final seat in _seats) {
+              if (seat.uid == uid) {
+                seat.isSpeaking = vol > 10;
+                seat.volume = vol;
+              }
+            }
+          }
+        });
+      },
+      onLocalAudioStateChanged: (state, error) {
+        _log('本地音频: ${state.name}${error != SyLocalAudioStreamError.ok ? " (${error.name})" : ""}');
+      },
+      onRemoteAudioStateChanged: (uid, state, reason, elapsed) {
+        _log('远端音频[$uid]: ${state.name} (${reason.name})');
+      },
+      onAudioRoutingChanged: (routing) {
+        final names = {0: '默认', 1: '听筒', 3: '扬声器', 5: '蓝牙'};
+        _log('音频路由: ${names[routing] ?? '设备$routing'}');
+      },
+      onStreamMessage: (uid, streamId, data) {
+        _log('数据流[$uid]: ${data.length}字节');
+      },
+      onStreamMessageError: (uid, streamId, code, missed, cached) {
+        _log('数据流错误[$uid]: code=$code missed=$missed');
+      },
+      onChannelMessage: (uid, message) {
+        _handleChannelMessage(uid, message);
+      },
+      onError: (code, message) {
+        _log('错误: [$code] $message');
+      },
+    ));
+  }
 
-    _errorSub = widget.engine.onError.listen((e) {
-      _log('错误: [${e.errCode}] ${e.errMsg}');
-    });
-
-    _channelMsgSub = widget.engine.onChannelMessage.listen((e) {
-      _handleChannelMessage(e.uid, e.message);
+  void _setupStreamListeners() {
+    _eventSub = widget.engine.events.listen((e) {
+      // events stream 可按需监听全部事件
     });
   }
 
@@ -402,6 +459,39 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
         backgroundColor: const Color(0xFF16213E),
         foregroundColor: Colors.white,
         actions: [
+          if (_inRoom && _networkQualityStr.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Center(
+                child: Text(
+                  _networkQualityStr,
+                  style: const TextStyle(color: Colors.white54, fontSize: 10),
+                ),
+              ),
+            ),
+          if (_inRoom && _connectionState.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _connectionState == 'connected'
+                        ? Colors.green.withValues(alpha: 0.3)
+                        : Colors.orange.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _connectionState,
+                    style: TextStyle(
+                      color: _connectionState == 'connected'
+                          ? Colors.greenAccent : Colors.orangeAccent,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           if (_inRoom)
             Padding(
               padding: const EdgeInsets.only(right: 12),
@@ -409,7 +499,7 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.3),
+                    color: Colors.green.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -418,7 +508,7 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
                       const Icon(Icons.people, size: 16, color: Colors.greenAccent),
                       const SizedBox(width: 4),
                       Text(
-                        '在线 ${_onlineUsers.length}',
+                        '${_onlineUsers.length}',
                         style: const TextStyle(color: Colors.greenAccent, fontSize: 13, fontWeight: FontWeight.bold),
                       ),
                     ],
@@ -877,11 +967,7 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
 
   @override
   void dispose() {
-    _joinSub?.cancel();
-    _leaveSub?.cancel();
-    _volumeSub?.cancel();
-    _errorSub?.cancel();
-    _channelMsgSub?.cancel();
+    _eventSub?.cancel();
     _channelController.dispose();
     _uidController.dispose();
     super.dispose();

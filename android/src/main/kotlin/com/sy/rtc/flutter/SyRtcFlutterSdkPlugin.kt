@@ -554,7 +554,19 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
   }
 
   private fun createEventHandler(): RtcEventHandler {
-    return object : RtcEventHandler {
+    return object : RtcEventHandler() {
+      override fun onJoinChannelSuccess(channelId: String, uid: String, elapsed: Int) {
+        invokeOnMain("onJoinChannelSuccess", mapOf("channelId" to channelId, "uid" to uid, "elapsed" to elapsed))
+      }
+
+      override fun onLeaveChannel(stats: Map<String, Any?>) {
+        invokeOnMain("onLeaveChannel", mapOf("stats" to stats))
+      }
+
+      override fun onConnectionStateChanged(state: String, reason: String) {
+        invokeOnMain("onConnectionStateChanged", mapOf("state" to state, "reason" to reason))
+      }
+
       override fun onUserJoined(uid: String, elapsed: Int) {
         invokeOnMain("onUserJoined", mapOf("uid" to uid, "elapsed" to elapsed))
       }
