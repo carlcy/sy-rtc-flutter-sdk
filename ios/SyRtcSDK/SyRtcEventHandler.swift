@@ -19,6 +19,9 @@ public protocol SyRtcEventHandler: AnyObject {
 
     /// 数据流消息错误回调（可选）
     func onStreamMessageError(uid: String, streamId: Int, code: Int, missed: Int, cached: Int)
+
+    /// 频道消息回调
+    func onChannelMessage(uid: String, message: String)
 }
 
 /// 音量信息
@@ -36,4 +39,5 @@ public extension SyRtcEventHandler {
     func onError(code: Int, message: String) {}
     func onStreamMessage(uid: String, streamId: Int, data: Data) {}
     func onStreamMessageError(uid: String, streamId: Int, code: Int, missed: Int, cached: Int) {}
+    func onChannelMessage(uid: String, message: String) {}
 }

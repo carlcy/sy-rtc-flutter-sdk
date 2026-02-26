@@ -102,6 +102,15 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
         result(false)
       }
       
+    case "sendChannelMessage":
+      if let args = call.arguments as? [String: Any],
+         let message = args["message"] as? String {
+        engine?.sendChannelMessage(message)
+        result(true)
+      } else {
+        result(false)
+      }
+
     case "setClientRole":
       if let args = call.arguments as? [String: Any],
          let roleStr = args["role"] as? String {
@@ -715,6 +724,10 @@ extension SyRtcFlutterSdkPlugin: SyRtcEventHandler {
 
   public func onError(code: Int, message: String) {
     eventChannel?.invokeMethod("onError", arguments: ["errCode": code, "errMsg": message])
+  }
+
+  public func onChannelMessage(uid: String, message: String) {
+    eventChannel?.invokeMethod("onChannelMessage", arguments: ["uid": uid, "message": message])
   }
 
   public func onStreamMessage(uid: String, streamId: Int, data: Data) {

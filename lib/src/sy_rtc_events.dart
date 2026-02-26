@@ -154,6 +154,17 @@ class SyStreamMessageErrorEvent extends SyRtcEvent {
   }) : super('streamMessageError');
 }
 
+/// 频道消息事件
+class SyChannelMessageEvent extends SyRtcEvent {
+  final String uid;
+  final String message;
+
+  SyChannelMessageEvent({
+    required this.uid,
+    required this.message,
+  }) : super('channelMessage');
+}
+
 /// 首帧远端视频解码事件
 class SyFirstRemoteVideoDecodedEvent extends SyRtcEvent {
   final String uid;

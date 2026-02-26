@@ -140,6 +140,13 @@ class SyRtcEngine {
     await _channel.invokeMethod('muteLocalAudio', {'muted': muted});
   }
 
+  /// 发送频道消息（广播给频道内所有用户）
+  ///
+  /// [message] 消息内容（通常为JSON字符串）
+  Future<void> sendChannelMessage(String message) async {
+    await _channel.invokeMethod('sendChannelMessage', {'message': message});
+  }
+
   /// 设置客户端角色
   /// 
   /// [role] 角色：'host' 或 'audience'
@@ -250,6 +257,13 @@ class SyRtcEngine {
     return _eventController.stream
         .where((event) => event is SyStreamMessageErrorEvent)
         .cast<SyStreamMessageErrorEvent>();
+  }
+
+  /// 频道消息事件流
+  Stream<SyChannelMessageEvent> get onChannelMessage {
+    return _eventController.stream
+        .where((event) => event is SyChannelMessageEvent)
+        .cast<SyChannelMessageEvent>();
   }
 
   /// 首帧远端视频解码事件流
@@ -971,6 +985,13 @@ class SyRtcEngine {
         );
         _eventController.add(event);
         _eventHandler?.onStreamMessageError?.call(uid, streamId, code, missed, cached);
+        break;
+      case 'onChannelMessage':
+        final uid = call.arguments['uid'] as String? ?? '';
+        final message = call.arguments['message'] as String? ?? '';
+        final event = SyChannelMessageEvent(uid: uid, message: message);
+        _eventController.add(event);
+        _eventHandler?.onChannelMessage?.call(uid, message);
         break;
       case 'onFirstRemoteVideoDecoded':
         final uid = call.arguments['uid'] as String;

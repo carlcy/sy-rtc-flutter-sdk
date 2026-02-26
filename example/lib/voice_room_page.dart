@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:sy_rtc_flutter_sdk/sy_rtc_flutter_sdk.dart';
 import 'app_config.dart';
@@ -34,6 +35,7 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
   final _uidController = TextEditingController(text: 'user_${DateTime.now().millisecondsSinceEpoch % 10000}');
 
   bool _inRoom = false;
+  bool _isJoining = false;
   bool _isOnMic = false;
   bool _isMicMuted = false;
   bool _isSpeakerOn = true;
@@ -48,6 +50,7 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
   StreamSubscription<SyUserOfflineEvent>? _leaveSub;
   StreamSubscription<SyVolumeIndicationEvent>? _volumeSub;
   StreamSubscription<SyErrorEvent>? _errorSub;
+  StreamSubscription<SyChannelMessageEvent>? _channelMsgSub;
 
   @override
   void initState() {
@@ -61,6 +64,7 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
         _onlineUsers.add(e.uid);
       });
       _log('用户加入: ${e.uid}');
+      _broadcastMySeatIfOnMic();
     });
 
     _leaveSub = widget.engine.onUserOffline.listen((e) {
@@ -104,6 +108,85 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
     _errorSub = widget.engine.onError.listen((e) {
       _log('错误: [${e.errCode}] ${e.errMsg}');
     });
+
+    _channelMsgSub = widget.engine.onChannelMessage.listen((e) {
+      _handleChannelMessage(e.uid, e.message);
+    });
+  }
+
+  void _handleChannelMessage(String fromUid, String message) {
+    if (fromUid == _myUid) return;
+    try {
+      final data = jsonDecode(message) as Map<String, dynamic>;
+      final action = data['action'] as String?;
+      switch (action) {
+        case 'seat-take':
+          final uid = data['uid'] as String;
+          final seatIndex = data['seatIndex'] as int;
+          final muted = data['muted'] as bool? ?? false;
+          if (seatIndex >= 0 && seatIndex < _seats.length) {
+            setState(() {
+              for (final s in _seats) {
+                if (s.uid == uid) {
+                  s.uid = null;
+                  s.isMuted = false;
+                  s.isSpeaking = false;
+                  s.volume = 0;
+                }
+              }
+              _seats[seatIndex].uid = uid;
+              _seats[seatIndex].isMuted = muted;
+            });
+            _log('$uid 上了${seatIndex == 0 ? "房主位" : "${seatIndex}号麦"}');
+          }
+          break;
+        case 'seat-leave':
+          final uid = data['uid'] as String;
+          setState(() {
+            for (final s in _seats) {
+              if (s.uid == uid) {
+                s.uid = null;
+                s.isMuted = false;
+                s.isSpeaking = false;
+                s.volume = 0;
+              }
+            }
+          });
+          _log('$uid 下麦了');
+          break;
+        case 'seat-mute':
+          final uid = data['uid'] as String;
+          final muted = data['muted'] as bool? ?? false;
+          setState(() {
+            for (final s in _seats) {
+              if (s.uid == uid) {
+                s.isMuted = muted;
+              }
+            }
+          });
+          break;
+      }
+    } catch (_) {}
+  }
+
+  void _broadcastSeatAction(Map<String, dynamic> data) {
+    try {
+      widget.engine.sendChannelMessage(jsonEncode(data));
+    } catch (e) {
+      _log('广播麦位状态失败: $e');
+    }
+  }
+
+  void _broadcastMySeatIfOnMic() {
+    if (!_isOnMic || !_inRoom) return;
+    final myIdx = _seats.indexWhere((s) => s.uid == _myUid);
+    if (myIdx == -1) return;
+    _broadcastSeatAction({
+      'action': 'seat-take',
+      'uid': _myUid,
+      'seatIndex': myIdx,
+      'muted': _isMicMuted,
+    });
   }
 
   void _log(String msg) {
@@ -124,23 +207,34 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
     final uid = _uidController.text.trim();
     if (channelId.isEmpty || uid.isEmpty) {
       _log('请填写房间ID和用户ID');
+      _showError('请填写房间ID和用户ID');
       return;
     }
 
-    _log('正在拉取Token...');
+    setState(() => _isJoining = true);
+    _log('正在拉取Token (API: ${widget.config.tokenEndpoint})...');
     try {
       final token = await widget.tokenService.fetchRtcToken(
         channelId: channelId,
         uid: uid,
       );
-      _log('Token已获取，正在加入房间...');
+      _log('Token已获取: ${token.substring(0, 20)}...');
 
+      _log('正在加入房间 (channelId=$channelId, uid=$uid)...');
       await widget.engine.join(channelId, uid, token);
+      _log('join 调用完成');
+
+      _log('设置角色为听众...');
       await widget.engine.setClientRole('audience');
+      _log('setClientRole 完成');
+
+      _log('开启扬声器...');
       await widget.engine.setEnableSpeakerphone(true);
+      _log('setEnableSpeakerphone 完成');
 
       setState(() {
         _inRoom = true;
+        _isJoining = false;
         _isOnMic = false;
         _isMicMuted = false;
         _isSpeakerOn = true;
@@ -148,14 +242,34 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
         _channelId = channelId;
         _onlineUsers.add(uid);
       });
-      _log('已加入房间: $channelId (身份: 听众)');
-    } catch (e) {
-      _log('加入房间失败: $e');
+      _log('=== 已成功加入房间: $channelId (身份: 听众) ===');
+    } catch (e, st) {
+      _log('!!! 加入房间失败: $e');
+      _log('堆栈: ${st.toString().split('\n').take(5).join('\n')}');
+      setState(() => _isJoining = false);
+      _showError('加入房间失败: $e');
     }
+  }
+
+  void _showError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.redAccent,
+        duration: const Duration(seconds: 5),
+      ),
+    );
   }
 
   Future<void> _leaveRoom() async {
     try {
+      if (_isOnMic) {
+        _broadcastSeatAction({
+          'action': 'seat-leave',
+          'uid': _myUid,
+        });
+      }
       await widget.engine.leave();
       setState(() {
         _inRoom = false;
@@ -193,6 +307,12 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
         _seats[emptyIdx].uid = _myUid;
         _seats[emptyIdx].isMuted = false;
       });
+      _broadcastSeatAction({
+        'action': 'seat-take',
+        'uid': _myUid,
+        'seatIndex': emptyIdx,
+        'muted': false,
+      });
       _log('上麦成功 (麦位${emptyIdx + 1})');
     } catch (e) {
       _log('上麦失败: $e');
@@ -202,6 +322,10 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
   Future<void> _goOffMic() async {
     if (!_inRoom || !_isOnMic) return;
     try {
+      _broadcastSeatAction({
+        'action': 'seat-leave',
+        'uid': _myUid,
+      });
       await widget.engine.muteLocalAudio(true);
       await widget.engine.setClientRole('audience');
       setState(() {
@@ -234,6 +358,11 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
             seat.isMuted = newMuted;
           }
         }
+      });
+      _broadcastSeatAction({
+        'action': 'seat-mute',
+        'uid': _myUid,
+        'muted': newMuted,
       });
       _log(newMuted ? '麦克风已关闭' : '麦克风已开启');
     } catch (e) {
@@ -293,11 +422,12 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
   }
 
   Widget _buildJoinView() {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          const SizedBox(height: 16),
           const Icon(Icons.mic_rounded, size: 80, color: Colors.blueAccent),
           const SizedBox(height: 16),
           const Text('语聊房测试', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
@@ -315,14 +445,28 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
-              onPressed: _joinRoom,
+              onPressed: _isJoining ? null : _joinRoom,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blueAccent,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                disabledBackgroundColor: Colors.blueAccent.withOpacity(0.4),
               ),
-              child: const Text('加入房间', style: TextStyle(fontSize: 16, color: Colors.white)),
+              child: _isJoining
+                  ? const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                        SizedBox(width: 10),
+                        Text('正在加入...', style: TextStyle(fontSize: 16, color: Colors.white70)),
+                      ],
+                    )
+                  : const Text('加入房间', style: TextStyle(fontSize: 16, color: Colors.white)),
             ),
           ),
+          if (_logs.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            _buildLogPanel(),
+          ],
         ],
       ),
     );
@@ -557,6 +701,12 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
         _seats[seatIndex].uid = _myUid;
         _seats[seatIndex].isMuted = false;
       });
+      _broadcastSeatAction({
+        'action': 'seat-take',
+        'uid': _myUid,
+        'seatIndex': seatIndex,
+        'muted': false,
+      });
       _log('上麦成功 (${seatIndex == 0 ? "房主位" : "${seatIndex}号麦"})');
     } catch (e) {
       _log('上麦失败: $e');
@@ -720,6 +870,7 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
     _leaveSub?.cancel();
     _volumeSub?.cancel();
     _errorSub?.cancel();
+    _channelMsgSub?.cancel();
     _channelController.dispose();
     _uidController.dispose();
     super.dispose();

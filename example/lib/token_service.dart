@@ -47,6 +47,9 @@ class TokenService {
     final response = await http.post(
       uri,
       headers: headers,
+    ).timeout(
+      const Duration(seconds: 10),
+      onTimeout: () => throw Exception('Token请求超时(10s)，请检查API地址: $uri'),
     );
 
     if (response.statusCode != 200) {

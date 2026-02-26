@@ -1,5 +1,7 @@
 package com.sy.rtc.flutter
 
+import android.os.Handler
+import android.os.Looper
 import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
@@ -24,9 +26,20 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
   private lateinit var channel : MethodChannel
   private var engine: RtcEngine? = null
   private var eventChannel: MethodChannel? = null
-  private var appFeatures: Set<String> = mutableSetOf("voice") // 默认只有语聊功能
+  private var appFeatures: Set<String> = mutableSetOf("voice")
   private var apiBaseUrl: String? = null
   private var flutterContext: android.content.Context? = null
+  private val mainHandler = Handler(Looper.getMainLooper())
+
+  private fun invokeOnMain(method: String, arguments: Any?) {
+    mainHandler.post {
+      try {
+        eventChannel?.invokeMethod(method, arguments)
+      } catch (t: Throwable) {
+        android.util.Log.e("SyRtcFlutterSdk", "invokeOnMain failed: $method", t)
+      }
+    }
+  }
 
   override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, "sy_rtc_flutter_sdk")
@@ -123,6 +136,11 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
       "muteLocalAudio" -> {
         val muted = call.argument<Boolean>("muted") ?: false
         engine?.muteLocalAudio(muted)
+        result.success(true)
+      }
+      "sendChannelMessage" -> {
+        val message = call.argument<String>("message") ?: ""
+        engine?.sendChannelMessage(message)
         result.success(true)
       }
       "setClientRole" -> {
@@ -538,44 +556,42 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
   private fun createEventHandler(): RtcEventHandler {
     return object : RtcEventHandler {
       override fun onUserJoined(uid: String, elapsed: Int) {
-        eventChannel?.invokeMethod("onUserJoined", mapOf("uid" to uid, "elapsed" to elapsed))
+        invokeOnMain("onUserJoined", mapOf("uid" to uid, "elapsed" to elapsed))
       }
 
       override fun onUserOffline(uid: String, reason: String) {
-        eventChannel?.invokeMethod("onUserOffline", mapOf("uid" to uid, "reason" to reason))
+        invokeOnMain("onUserOffline", mapOf("uid" to uid, "reason" to reason))
       }
 
       override fun onVolumeIndication(speakers: List<VolumeInfo>) {
         val speakersList = speakers.map { mapOf("uid" to it.uid, "volume" to it.volume) }
-        eventChannel?.invokeMethod("onVolumeIndication", mapOf("speakers" to speakersList))
+        invokeOnMain("onVolumeIndication", mapOf("speakers" to speakersList))
       }
 
       override fun onError(code: Int, message: String) {
-        eventChannel?.invokeMethod("onError", mapOf("errCode" to code, "errMsg" to message))
+        invokeOnMain("onError", mapOf("errCode" to code, "errMsg" to message))
+      }
+
+      override fun onChannelMessage(uid: String, message: String) {
+        invokeOnMain("onChannelMessage", mapOf("uid" to uid, "message" to message))
       }
 
       override fun onStreamMessage(uid: String, streamId: Int, data: ByteArray) {
-        eventChannel?.invokeMethod(
-          "onStreamMessage",
-          mapOf(
-            "uid" to uid,
-            "streamId" to streamId,
-            "data" to data.toList()
-          )
-        )
+        invokeOnMain("onStreamMessage", mapOf(
+          "uid" to uid,
+          "streamId" to streamId,
+          "data" to data.toList()
+        ))
       }
 
       override fun onStreamMessageError(uid: String, streamId: Int, code: Int, missed: Int, cached: Int) {
-        eventChannel?.invokeMethod(
-          "onStreamMessageError",
-          mapOf(
-            "uid" to uid,
-            "streamId" to streamId,
-            "code" to code,
-            "missed" to missed,
-            "cached" to cached
-          )
-        )
+        invokeOnMain("onStreamMessageError", mapOf(
+          "uid" to uid,
+          "streamId" to streamId,
+          "code" to code,
+          "missed" to missed,
+          "cached" to cached
+        ))
       }
     }
   }

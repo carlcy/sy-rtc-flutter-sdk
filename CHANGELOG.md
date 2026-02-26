@@ -1,3 +1,23 @@
+## 1.4.0
+
+### 新功能
+
+- **频道消息**：新增 `sendChannelMessage(message)` 方法和 `onChannelMessage` 事件，支持向频道内所有用户广播自定义消息（JSON 格式），可用于麦位同步、自定义信令等场景
+- **在线人数修复**：修复后加入房间的用户无法看到已有用户的问题（SDK 收到 `user-list` 时现在会正确触发 `onUserJoined`）
+
+### 改进
+
+- **Flutter Example**：麦位状态通过频道消息实现跨用户实时同步（上麦/下麦/静音/退出）
+- **Demo 地址**：所有 demo 中的 API/信令地址改为域名（`https://syrtcapi.shengyuchenyao.cn`）
+
+### 升级说明
+
+- Flutter：`sy_rtc_flutter_sdk: ^1.4.0`
+- Android：`com.sy.rtc:sy-rtc-android-sdk:1.4.0`
+- iOS：`pod 'SyRtcSDK', '~> 1.4.0'` 或 SPM tag `v1.4.0`
+
+---
+
 ## 1.3.1
 
 ### Fixes

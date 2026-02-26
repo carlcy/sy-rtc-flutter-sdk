@@ -64,7 +64,7 @@ class _InitPageState extends State<InitPage> {
   }
 
   Future<void> _requestPermissions() async {
-    _log('请求麦克风权限...');
+    _log('请求权限...');
     try {
       final micStatus = await Permission.microphone.request();
       _log('麦克风权限: $micStatus');
@@ -74,6 +74,9 @@ class _InitPageState extends State<InitPage> {
       if (Platform.isAndroid) {
         try {
           await Permission.phone.request();
+        } catch (_) {}
+        try {
+          await Permission.bluetoothConnect.request();
         } catch (_) {}
       }
     } catch (e) {

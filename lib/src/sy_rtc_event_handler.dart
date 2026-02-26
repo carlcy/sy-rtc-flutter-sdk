@@ -18,6 +18,9 @@ class SyRtcEventHandler {
   /// 数据流消息错误回调
   final void Function(String uid, int streamId, int code, int missed, int cached)? onStreamMessageError;
 
+  /// 频道消息回调
+  final void Function(String uid, String message)? onChannelMessage;
+
   SyRtcEventHandler({
     this.onUserJoined,
     this.onUserOffline,
@@ -25,5 +28,6 @@ class SyRtcEventHandler {
     this.onError,
     this.onStreamMessage,
     this.onStreamMessageError,
+    this.onChannelMessage,
   });
 }

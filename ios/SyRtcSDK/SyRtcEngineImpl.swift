@@ -243,6 +243,7 @@ internal class SyRtcEngineImpl {
             // 服务端 data.users 可能是 [String] 或 JSON 反序列化后的 [Any]，需兼容
             let users: [String] = (data["users"] as? [String]) ?? (data["users"] as? [Any])?.compactMap { $0 as? String } ?? []
             for u in users where u != localUid {
+                eventHandler?.onUserJoined(uid: u, elapsed: 0)
                 if peerConnections[u] == nil { _ = createPeerConnection(remoteUid: u) }
                 if shouldInitiateOffer(localUid: localUid, remoteUid: u) {
                     startOffer(to: u)
@@ -303,6 +304,10 @@ internal class SyRtcEngineImpl {
                 pendingLocalIceByUid.removeValue(forKey: uid)
                 pendingRemoteIceByUid.removeValue(forKey: uid)
             }
+        case "channel-message":
+            let fromUid = (data["uid"] as? String) ?? ""
+            let msg = (data["message"] as? String) ?? ""
+            eventHandler?.onChannelMessage(uid: fromUid, message: msg)
         case "error":
             let msg = (data["error"] as? String) ?? "信令错误"
             eventHandler?.onError(code: 1002, message: msg)
@@ -466,9 +471,16 @@ internal class SyRtcEngineImpl {
         }
     }
     
+    func sendChannelMessage(_ message: String) {
+        guard currentChannelId != nil else {
+            print("未加入频道，无法发送频道消息")
+            return
+        }
+        signalingClient?.sendChannelMessage(message)
+    }
+
     func muteLocalAudio(_ muted: Bool) {
         print("本地音频静音: \(muted)")
-        // 静音逻辑
     }
 
     // MARK: - 角色
