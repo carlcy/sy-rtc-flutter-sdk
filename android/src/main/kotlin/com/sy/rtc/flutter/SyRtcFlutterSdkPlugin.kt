@@ -543,6 +543,36 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
         engine = null
         result.success(true)
       }
+      "httpRequest" -> {
+        val method = call.argument<String>("method") ?: "GET"
+        val url = call.argument<String>("url") ?: ""
+        val headers = call.argument<Map<String, String>>("headers") ?: emptyMap()
+        val body = call.argument<String>("body")
+        Thread {
+          try {
+            val conn = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+            conn.requestMethod = method
+            conn.connectTimeout = 10000
+            conn.readTimeout = 10000
+            for ((k, v) in headers) conn.setRequestProperty(k, v)
+            if (body != null && (method == "POST" || method == "PUT")) {
+              conn.doOutput = true
+              conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+            }
+            val responseCode = conn.responseCode
+            val stream = if (responseCode in 200..299) conn.inputStream else conn.errorStream
+            val responseBody = stream?.bufferedReader()?.use { it.readText() } ?: ""
+            conn.disconnect()
+            val json = org.json.JSONObject(responseBody)
+            val map = jsonToMap(json)
+            android.os.Handler(android.os.Looper.getMainLooper()).post { result.success(map) }
+          } catch (e: Exception) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+              result.error("HTTP_ERROR", e.message, null)
+            }
+          }
+        }.start()
+      }
       else -> {
         result.notImplemented()
       }
@@ -643,6 +673,36 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
         android.util.Log.e("SyRtcFlutterSdk", "功能权限查询失败: ${e.message}")
       }
     }.start()
+  }
+
+  private fun jsonToMap(json: org.json.JSONObject): Map<String, Any?> {
+    val map = mutableMapOf<String, Any?>()
+    val keys = json.keys()
+    while (keys.hasNext()) {
+      val key = keys.next()
+      val value = json.opt(key)
+      map[key] = when (value) {
+        is org.json.JSONObject -> jsonToMap(value)
+        is org.json.JSONArray -> jsonArrayToList(value)
+        org.json.JSONObject.NULL -> null
+        else -> value
+      }
+    }
+    return map
+  }
+
+  private fun jsonArrayToList(arr: org.json.JSONArray): List<Any?> {
+    val list = mutableListOf<Any?>()
+    for (i in 0 until arr.length()) {
+      val value = arr.opt(i)
+      list.add(when (value) {
+        is org.json.JSONObject -> jsonToMap(value)
+        is org.json.JSONArray -> jsonArrayToList(value)
+        org.json.JSONObject.NULL -> null
+        else -> value
+      })
+    }
+    return list
   }
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {

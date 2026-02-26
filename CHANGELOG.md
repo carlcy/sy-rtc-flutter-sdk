@@ -1,3 +1,32 @@
+## 2.1.0
+
+### 新增 SyRoomService — 房间管理服务
+
+对标声网 (Agora)、即构 (Zego) 等主流 RTC SDK 设计，新增 `SyRoomService` 作为核心 RTC 引擎的可选配套组件。
+
+**新增功能：**
+- `SyRoomService` 类：房间管理 + Token 获取的便捷封装
+  - `getRoomList()` — 获取活跃房间列表（不需要 RTC Token）
+  - `createRoom(channelId)` — 创建房间
+  - `closeRoom(channelId)` — 关闭房间
+  - `getRoomDetail(channelId)` — 获取房间详情
+  - `getOnlineCount(channelId)` — 查询在线人数
+  - `fetchToken(channelId, uid)` — 获取 RTC Token
+- `SyRoomInfo` 数据类：channelId、hostUid、status、onlineCount、maxSeats、createTime
+- `SyRtcEngine.setChannelProfile()` — 设置频道场景（communication/liveBroadcasting）
+- `SyRtcEngine.enableAudioVolumeIndication()` — 启用用户音量提示
+
+**示例应用更新：**
+- 新增房间列表页面 (`RoomListPage`)，展示完整流程：浏览房间 → 选择/创建 → 获取 Token → 加入
+- Token 自动续期（`onTokenPrivilegeWillExpire` 回调）
+
+**文档更新：**
+- SDK 集成指南中所有示例代码更新为含 SyRoomService 的完整流程
+- API 文档新增 SyRoomService 部分
+- 更新主流 SDK 设计对比说明
+
+---
+
 ## 2.0.0 (Breaking Change)
 
 ### 架构调整

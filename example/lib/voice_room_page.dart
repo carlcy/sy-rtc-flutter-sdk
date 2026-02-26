@@ -3,18 +3,23 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:sy_rtc_flutter_sdk/sy_rtc_flutter_sdk.dart';
 import 'app_config.dart';
-import 'token_service.dart';
 
 class VoiceRoomPage extends StatefulWidget {
   final SyRtcEngine engine;
   final AppConfig config;
-  final TokenService tokenService;
+  final SyRoomService roomService;
+  final String channelId;
+  final String uid;
+  final String token;
 
   const VoiceRoomPage({
     super.key,
     required this.engine,
     required this.config,
-    required this.tokenService,
+    required this.roomService,
+    required this.channelId,
+    required this.uid,
+    required this.token,
   });
 
   @override
@@ -31,8 +36,8 @@ class _SeatInfo {
 }
 
 class _VoiceRoomPageState extends State<VoiceRoomPage> {
-  final _channelController = TextEditingController(text: 'test_room_001');
-  final _uidController = TextEditingController(text: 'user_${DateTime.now().millisecondsSinceEpoch % 10000}');
+  late final TextEditingController _channelController;
+  late final TextEditingController _uidController;
 
   bool _inRoom = false;
   bool _isJoining = false;
@@ -54,8 +59,11 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
   @override
   void initState() {
     super.initState();
+    _channelController = TextEditingController(text: widget.channelId);
+    _uidController = TextEditingController(text: widget.uid);
     _setupEventHandler();
     _setupStreamListeners();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _joinRoom());
   }
 
   void _setupEventHandler() {
@@ -85,11 +93,31 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
       onRtcStats: (stats) {
         // 统计信息可按需展示
       },
-      onTokenPrivilegeWillExpire: () {
-        _log('⚠ Token即将过期，请刷新');
+      onTokenPrivilegeWillExpire: () async {
+        _log('Token即将过期，自动续期...');
+        try {
+          final newToken = await widget.roomService.fetchToken(
+            channelId: widget.channelId,
+            uid: widget.uid,
+          );
+          await widget.engine.renewToken(newToken);
+          _log('Token 已续期');
+        } catch (e) {
+          _log('Token 续期失败: $e');
+        }
       },
-      onRequestToken: () {
-        _log('⚠ Token已过期');
+      onRequestToken: () async {
+        _log('Token已过期，自动获取新 Token...');
+        try {
+          final newToken = await widget.roomService.fetchToken(
+            channelId: widget.channelId,
+            uid: widget.uid,
+          );
+          await widget.engine.renewToken(newToken);
+          _log('Token 已更新');
+        } catch (e) {
+          _log('Token 更新失败: $e');
+        }
       },
       onUserJoined: (uid, elapsed) {
         setState(() => _onlineUsers.add(uid));
@@ -265,25 +293,15 @@ class _VoiceRoomPageState extends State<VoiceRoomPage> {
   }
 
   Future<void> _joinRoom() async {
-    final channelId = _channelController.text.trim();
-    final uid = _uidController.text.trim();
-    if (channelId.isEmpty || uid.isEmpty) {
-      _log('请填写房间ID和用户ID');
-      _showError('请填写房间ID和用户ID');
-      return;
-    }
+    final channelId = widget.channelId;
+    final uid = widget.uid;
 
     setState(() => _isJoining = true);
-    _log('正在拉取Token (API: ${widget.config.tokenEndpoint})...');
+    _log('使用预获取的 Token 加入房间...');
     try {
-      final token = await widget.tokenService.fetchRtcToken(
-        channelId: channelId,
-        uid: uid,
-      );
-      _log('Token已获取: ${token.substring(0, 20)}...');
-
+      _log('Token: ${widget.token.substring(0, 20)}...');
       _log('正在加入房间 (channelId=$channelId, uid=$uid)...');
-      await widget.engine.join(channelId, uid, token);
+      await widget.engine.join(channelId, uid, widget.token);
       _log('join 调用完成');
 
       _log('设置角色为听众...');

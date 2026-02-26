@@ -153,6 +153,32 @@ class SyRtcEngine {
     await _channel.invokeMethod('setClientRole', {'role': role});
   }
 
+  /// 设置频道场景
+  ///
+  /// [profile] 场景：'communication'（通信）或 'liveBroadcasting'（直播）
+  /// 必须在 join 之前调用。
+  Future<void> setChannelProfile(String profile) async {
+    await _channel.invokeMethod('setChannelProfile', {'profile': profile});
+  }
+
+  /// 启用用户音量提示
+  ///
+  /// 启用后，SDK 会按设定间隔触发 onVolumeIndication 回调。
+  /// [interval] 回调间隔（毫秒），建议 200ms。设为 0 禁用。
+  /// [smooth] 平滑系数，建议 3
+  /// [reportVad] 是否报告本地用户的人声检测，默认 false
+  Future<void> enableAudioVolumeIndication({
+    int interval = 200,
+    int smooth = 3,
+    bool reportVad = false,
+  }) async {
+    await _channel.invokeMethod('enableAudioVolumeIndication', {
+      'interval': interval,
+      'smooth': smooth,
+      'reportVad': reportVad,
+    });
+  }
+
   /// 设置事件处理器
   void setEventHandler(SyRtcEventHandler handler) {
     _eventHandler = handler;

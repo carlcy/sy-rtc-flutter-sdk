@@ -664,7 +664,36 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
       engine?.release()
       engine = nil
       result(true)
-      
+
+    case "httpRequest":
+      if let args = call.arguments as? [String: Any],
+         let method = args["method"] as? String,
+         let urlStr = args["url"] as? String,
+         let url = URL(string: urlStr) {
+        let headers = args["headers"] as? [String: String] ?? [:]
+        let bodyStr = args["body"] as? String
+        var request = URLRequest(url: url, timeoutInterval: 10)
+        request.httpMethod = method
+        for (k, v) in headers { request.setValue(v, forHTTPHeaderField: k) }
+        if let bodyStr = bodyStr { request.httpBody = bodyStr.data(using: .utf8) }
+        URLSession.shared.dataTask(with: request) { data, response, error in
+          DispatchQueue.main.async {
+            if let error = error {
+              result(FlutterError(code: "HTTP_ERROR", message: error.localizedDescription, details: nil))
+              return
+            }
+            guard let data = data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+              result(FlutterError(code: "PARSE_ERROR", message: "Invalid response", details: nil))
+              return
+            }
+            result(json)
+          }
+        }.resume()
+      } else {
+        result(FlutterError(code: "INVALID_ARGS", message: "Missing method or url", details: nil))
+      }
+
     default:
       result(FlutterMethodNotImplemented)
     }

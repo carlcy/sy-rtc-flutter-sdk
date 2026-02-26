@@ -5,8 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sy_rtc_flutter_sdk/sy_rtc_flutter_sdk.dart';
 import 'app_config.dart';
-import 'token_service.dart';
-import 'voice_room_page.dart';
+import 'room_list_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -148,16 +147,23 @@ class _InitPageState extends State<InitPage> {
         appId: appId,
         appSecret: appSecret.isEmpty ? null : appSecret,
       );
-      final tokenService = TokenService(config);
+
+      final roomService = SyRoomService(
+        apiBaseUrl: apiBase,
+        appId: appId,
+      );
+      if (appSecret.isNotEmpty) {
+        roomService.setAppSecret(appSecret);
+      }
 
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => VoiceRoomPage(
+          builder: (_) => RoomListPage(
             engine: _engine,
             config: config,
-            tokenService: tokenService,
+            roomService: roomService,
           ),
         ),
       );

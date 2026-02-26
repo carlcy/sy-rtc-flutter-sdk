@@ -24,3 +24,4 @@ export 'src/sy_rtc_config_extended.dart';
 export 'src/sy_rtc_video_quality.dart';
 export 'src/sy_rtc_event_handler.dart';
 export 'src/sy_rtc_events.dart';
+export 'src/sy_room_service.dart';
