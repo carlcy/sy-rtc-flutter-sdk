@@ -13,114 +13,94 @@ public class SyRtcEngine {
     
     private init() {}
     
-    /// 初始化引擎
-    /// 
-    /// - Parameter appId: 应用ID
+    // MARK: - 初始化
+
     public func initialize(appId: String) {
         self.appId = appId
         impl = SyRtcEngineImpl(appId: appId)
         impl?.initialize()
     }
     
-    /// 初始化引擎（兼容旧API）
     public func `init`(_ appId: String) {
         initialize(appId: appId)
     }
-    
-    /// 加入频道
+
+    public func setSignalingServerUrl(_ url: String) {
+        impl?.setSignalingServerUrl(url)
+    }
+
+    public func setApiBaseUrl(_ url: String) {
+        impl?.setApiBaseUrl(url)
+    }
+
+    public func setApiAuthToken(_ token: String) {
+        impl?.setApiAuthToken(token)
+    }
+
+    public func setEventHandler(_ handler: SyRtcEventHandler) {
+        self.eventHandler = handler
+        impl?.eventHandler = handler
+    }
+
+    // MARK: - 频道管理
+
     public func join(channelId: String, uid: String, token: String) {
         impl?.eventHandler = eventHandler
         impl?.join(channelId: channelId, uid: uid, token: token)
     }
     
-    /// 离开频道
     public func leave() {
         impl?.leave()
     }
-    
-    /// 启用/禁用本地音频
+
+    // MARK: - 音频控制
+
     public func enableLocalAudio(_ enabled: Bool) {
         impl?.enableLocalAudio(enabled)
     }
     
-    /// 静音本地音频
     public func muteLocalAudio(_ muted: Bool) {
         impl?.muteLocalAudio(muted)
     }
-    
-    /// 设置客户端角色
+
+    public func sendChannelMessage(_ message: String) {
+        impl?.sendChannelMessage(message)
+    }
+
     public func setClientRole(_ role: SyRtcClientRole) {
         impl?.setClientRole(role)
     }
-    
-    /// 设置事件处理器
-    public func setEventHandler(_ handler: SyRtcEventHandler) {
-        self.eventHandler = handler
-        impl?.eventHandler = handler
-    }
-    
-    /// 设置信令服务器地址（可选）
-    public func setSignalingServerUrl(_ url: String) {
-        impl?.setSignalingServerUrl(url)
+
+    /// 设置频道场景
+    ///
+    /// 必须在 `join` 之前调用。
+    /// - Parameter profile: 场景："communication"（通信）或 "liveBroadcasting"（直播）
+    public func setChannelProfile(_ profile: String) {
+        impl?.setChannelProfile(profile)
     }
 
-    /// 设置后端 API Base URL（用于直播旁路：开播/关播/切布局/更新转码等）
-    public func setApiBaseUrl(_ url: String) {
-        impl?.setApiBaseUrl(url)
+    /// 启用用户音量提示
+    ///
+    /// 启用后，SDK 会按设定间隔触发 `onVolumeIndication` 回调。
+    /// - Parameters:
+    ///   - interval: 回调间隔（毫秒），建议 200ms。设为 0 禁用。
+    ///   - smooth: 平滑系数，建议 3
+    ///   - reportVad: 是否报告本地用户的人声检测，默认 false
+    public func enableAudioVolumeIndication(interval: Int = 200, smooth: Int = 3, reportVad: Bool = false) {
+        impl?.enableAudioVolumeIndication(interval: interval, smooth: smooth, reportVad: reportVad)
     }
 
-    /// 设置后端 API 认证 Token（JWT）
-    /// 用于调用 /api/rtc/live/* 等需要登录认证的接口
-    public func setApiAuthToken(_ token: String) {
-        impl?.setApiAuthToken(token)
-    }
-    
-    /// 启用视频模块
-    public func enableVideo() {
-        impl?.enableVideo()
-    }
-    
-    /// 设置视频编码配置
-    public func setVideoEncoderConfiguration(width: Int, height: Int, frameRate: Int, bitrate: Int) {
-        impl?.setVideoEncoderConfiguration(width: width, height: height, frameRate: frameRate, bitrate: bitrate)
-    }
-    
-    /// 开始视频预览
-    public func startPreview() {
-        impl?.startPreview()
-    }
-    
-    /// 停止视频预览
-    public func stopPreview() {
-        impl?.stopPreview()
-    }
-    
-    /// 设置本地视频视图
-    public func setupLocalVideo(viewId: Int) {
-        impl?.setupLocalVideo(viewId: viewId)
-    }
-    
-    /// 设置远端视频视图
-    public func setupRemoteVideo(uid: String, viewId: Int) {
-        impl?.setupRemoteVideo(uid: uid, viewId: viewId)
-    }
-    
-    /// 设置音频质量
-    public func setAudioQuality(_ quality: String) {
-        impl?.setAudioQuality(quality)
-    }
-
-    // MARK: - 网络质量/状态
-
+    /// 获取当前连接状态
     public func getConnectionState() -> String {
         return impl?.getConnectionState() ?? "disconnected"
     }
 
+    /// 获取当前网络类型
     public func getNetworkType() -> String {
         return impl?.getNetworkType() ?? "unknown"
     }
 
-    // MARK: - 音频路由/设备
+    // MARK: - 音频路由
 
     public func setEnableSpeakerphone(_ enabled: Bool) {
         impl?.setEnableSpeakerphone(enabled)
@@ -133,6 +113,50 @@ public class SyRtcEngine {
     public func isSpeakerphoneEnabled() -> Bool {
         return impl?.isSpeakerphoneEnabled() ?? false
     }
+
+    // MARK: - 远端音频控制
+
+    public func muteRemoteAudioStream(uid: String, muted: Bool) {
+        impl?.muteRemoteAudioStream(uid: uid, muted: muted)
+    }
+
+    public func muteAllRemoteAudioStreams(_ muted: Bool) {
+        impl?.muteAllRemoteAudioStreams(muted)
+    }
+
+    public func adjustUserPlaybackSignalVolume(uid: String, volume: Int) {
+        impl?.adjustUserPlaybackSignalVolume(uid: uid, volume: volume)
+    }
+
+    public func adjustPlaybackSignalVolume(_ volume: Int) {
+        impl?.adjustPlaybackSignalVolume(volume)
+    }
+
+    // MARK: - Token 刷新
+
+    public func renewToken(_ token: String) {
+        impl?.renewToken(token)
+    }
+
+    // MARK: - 音频配置
+
+    public func setAudioProfile(_ profile: String, scenario: String) {
+        impl?.setAudioProfile(profile, scenario: scenario)
+    }
+
+    public func enableAudio() {
+        impl?.enableAudio()
+    }
+
+    public func disableAudio() {
+        impl?.disableAudio()
+    }
+
+    public func setAudioQuality(_ quality: String) {
+        impl?.setAudioQuality(quality)
+    }
+
+    // MARK: - 音频设备管理
 
     public func enumerateRecordingDevices() -> [AudioDeviceInfo] {
         return impl?.enumerateRecordingDevices() ?? []
@@ -166,55 +190,21 @@ public class SyRtcEngine {
         impl?.setPlaybackDeviceVolume(volume)
     }
 
-    // MARK: - 远端音频控制
-
-    public func muteRemoteAudioStream(uid: String, muted: Bool) {
-        impl?.muteRemoteAudioStream(uid: uid, muted: muted)
-    }
-
-    public func muteAllRemoteAudioStreams(_ muted: Bool) {
-        impl?.muteAllRemoteAudioStreams(muted)
-    }
-
-    public func adjustUserPlaybackSignalVolume(uid: String, volume: Int) {
-        impl?.adjustUserPlaybackSignalVolume(uid: uid, volume: volume)
-    }
-
-    public func adjustPlaybackSignalVolume(_ volume: Int) {
-        impl?.adjustPlaybackSignalVolume(volume)
-    }
-
-    // MARK: - 录音信号
+    // MARK: - 音频采集控制
 
     public func adjustRecordingSignalVolume(_ volume: Int) {
         impl?.adjustRecordingSignalVolume(volume)
     }
 
     public func muteRecordingSignal(_ muted: Bool) {
-        impl?.muteRecordingSignal(muted)
+        impl?.muteLocalAudio(muted)
     }
 
-    // MARK: - Token
+    // MARK: - 视频基础
 
-    public func renewToken(_ token: String) {
-        impl?.renewToken(token)
+    public func enableVideo() {
+        impl?.enableVideo()
     }
-
-    // MARK: - 音频参数
-
-    public func setAudioProfile(_ profile: String, scenario: String) {
-        impl?.setAudioProfile(profile, scenario: scenario)
-    }
-
-    public func enableAudio() {
-        impl?.enableAudio()
-    }
-
-    public func disableAudio() {
-        impl?.disableAudio()
-    }
-
-    // MARK: - 视频
 
     public func disableVideo() {
         impl?.disableVideo()
@@ -222,6 +212,22 @@ public class SyRtcEngine {
 
     public func enableLocalVideo(_ enabled: Bool) {
         impl?.enableLocalVideo(enabled)
+    }
+
+    public func setVideoEncoderConfiguration(_ config: VideoEncoderConfiguration) {
+        impl?.setVideoEncoderConfiguration(config)
+    }
+
+    public func setVideoEncoderConfiguration(width: Int, height: Int, frameRate: Int, bitrate: Int) {
+        impl?.setVideoEncoderConfiguration(width: width, height: height, frameRate: frameRate, bitrate: bitrate)
+    }
+
+    public func startPreview() {
+        impl?.startPreview()
+    }
+
+    public func stopPreview() {
+        impl?.stopPreview()
     }
 
     public func muteLocalVideoStream(_ muted: Bool) {
@@ -234,6 +240,16 @@ public class SyRtcEngine {
 
     public func muteAllRemoteVideoStreams(_ muted: Bool) {
         impl?.muteAllRemoteVideoStreams(muted)
+    }
+
+    // MARK: - 视频渲染
+
+    public func setupLocalVideo(viewId: Int) {
+        impl?.setupLocalVideo(viewId: viewId)
+    }
+
+    public func setupRemoteVideo(uid: String, viewId: Int) {
+        impl?.setupRemoteVideo(uid: uid, viewId: viewId)
     }
 
     // MARK: - 屏幕共享
@@ -250,13 +266,17 @@ public class SyRtcEngine {
         impl?.updateScreenCaptureConfiguration(config)
     }
 
-    // MARK: - 美颜
+    // MARK: - 视频增强
 
     public func setBeautyEffectOptions(_ options: BeautyOptions) {
         impl?.setBeautyEffectOptions(options)
     }
 
-    // MARK: - 音频混音
+    public func takeSnapshot(uid: String, filePath: String) {
+        impl?.takeSnapshot(uid: uid, filePath: filePath)
+    }
+
+    // MARK: - 音乐文件播放
 
     public func startAudioMixing(_ config: AudioMixingConfiguration) {
         impl?.startAudioMixing(config)
@@ -286,7 +306,7 @@ public class SyRtcEngine {
         impl?.setAudioMixingPosition(position)
     }
 
-    // MARK: - 音效
+    // MARK: - 音效播放
 
     public func playEffect(soundId: Int, config: AudioEffectConfiguration) {
         impl?.playEffect(soundId: soundId, config: config)
@@ -322,13 +342,6 @@ public class SyRtcEngine {
         impl?.stopAudioRecording()
     }
 
-    // MARK: - 信令
-
-    /// 发送频道消息（广播给频道内所有用户）
-    public func sendChannelMessage(_ message: String) {
-        impl?.sendChannelMessage(message)
-    }
-
     // MARK: - 数据流
 
     public func createDataStream(reliable: Bool, ordered: Bool) -> Int {
@@ -339,7 +352,7 @@ public class SyRtcEngine {
         impl?.sendStreamMessage(streamId: streamId, data: data)
     }
 
-    // MARK: - 旁路推流（RTMP）
+    // MARK: - 旁路推流
 
     public func startRtmpStreamWithTranscoding(url: String, transcoding: LiveTranscoding) {
         impl?.startRtmpStreamWithTranscoding(url: url, transcoding: transcoding)
@@ -349,17 +362,12 @@ public class SyRtcEngine {
         impl?.stopRtmpStream(url: url)
     }
 
-    public func updateRtmpTranscoding(_ transcoding: LiveTranscoding) {
+    public func updateRtmpTranscoding(transcoding: LiveTranscoding) {
         impl?.updateRtmpTranscoding(transcoding: transcoding)
     }
 
-    // MARK: - 截图
+    // MARK: - 释放
 
-    public func takeSnapshot(uid: String, filePath: String) {
-        impl?.takeSnapshot(uid: uid, filePath: filePath)
-    }
-    
-    /// 释放资源
     public func release() {
         impl?.release()
         impl = nil

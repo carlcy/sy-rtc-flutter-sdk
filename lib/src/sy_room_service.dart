@@ -71,6 +71,7 @@ class SyRoomService {
   final String appId;
   String? _appSecret;
   String? _authToken;
+  String? _userId;
 
   SyRoomService({
     required this.apiBaseUrl,
@@ -87,6 +88,11 @@ class SyRoomService {
     _appSecret = secret;
   }
 
+  /// 设置用户 ID（用于房间创建、上下麦等需要身份的操作）
+  void setUserId(String uid) {
+    _userId = uid;
+  }
+
   Map<String, String> get _headers {
     final headers = <String, String>{
       'X-App-Id': appId,
@@ -97,6 +103,9 @@ class SyRoomService {
     }
     if (_appSecret != null && _appSecret!.isNotEmpty) {
       headers['X-App-Secret'] = _appSecret!;
+    }
+    if (_userId != null && _userId!.isNotEmpty) {
+      headers['X-Uid'] = _userId!;
     }
     return headers;
   }

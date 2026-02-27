@@ -7,9 +7,9 @@ import 'sy_rtc_config_extended.dart';
 import 'sy_rtc_video_quality.dart';
 
 /// SY RTC引擎主类
-/// 
+///
 /// SY RTC 引擎主类，提供实时音视频通信功能
-/// 
+///
 /// 示例：
 /// ```dart
 /// final engine = SyRtcEngine();
@@ -19,15 +19,17 @@ import 'sy_rtc_video_quality.dart';
 class SyRtcEngine {
   static const MethodChannel _channel = MethodChannel('sy_rtc_flutter_sdk');
   // 兼容：部分原生实现会把事件发送到单独的 MethodChannel
-  static const MethodChannel _eventsChannel = MethodChannel('sy_rtc_flutter_sdk/events');
+  static const MethodChannel _eventsChannel =
+      MethodChannel('sy_rtc_flutter_sdk/events');
   static final SyRtcEngine _instance = SyRtcEngine._internal();
   static bool _methodHandlerRegistered = false;
-  
+
   SyRtcEventHandler? _eventHandler;
-  final StreamController<SyRtcEvent> _eventController = StreamController<SyRtcEvent>.broadcast();
+  final StreamController<SyRtcEvent> _eventController =
+      StreamController<SyRtcEvent>.broadcast();
 
   factory SyRtcEngine() => _instance;
-  
+
   SyRtcEngine._internal() {
     // 注意：不要在构造期注册 setMethodCallHandler（单测/纯 Dart VM 下 BinaryMessenger 可能未初始化）
   }
@@ -45,19 +47,20 @@ class SyRtcEngine {
   }
 
   /// 初始化引擎
-  /// 
+  ///
   /// [appId] 应用ID
   /// [apiBaseUrl] API基础URL（可选，用于查询功能权限）
   /// [signalingUrl] 信令 WebSocket 地址（可选），例如：
   /// - ws://47.105.48.196/ws/signaling
   /// - wss://your-domain.com/ws/signaling
-  Future<void> init(String appId, {String? apiBaseUrl, String? signalingUrl}) async {
+  Future<void> init(String appId,
+      {String? apiBaseUrl, String? signalingUrl}) async {
     await _invoke<void>('init', {
       'appId': appId,
       'apiBaseUrl': apiBaseUrl,
       'signalingUrl': signalingUrl,
     });
-    
+
     // 如果提供了API URL，查询功能权限
     if (apiBaseUrl != null && apiBaseUrl.isNotEmpty) {
       await _checkFeatures(appId, apiBaseUrl);
@@ -71,9 +74,9 @@ class SyRtcEngine {
   Future<void> setApiAuthToken(String token) async {
     await _channel.invokeMethod('setApiAuthToken', {'token': token});
   }
-  
+
   /// 检查功能权限
-  /// 
+  ///
   /// 通过MethodChannel调用原生层，原生层会通过HTTP请求查询功能权限
   /// 查询结果会缓存在原生层，后续通过hasFeature方法查询
   Future<void> _checkFeatures(String appId, String apiBaseUrl) async {
@@ -90,25 +93,26 @@ class SyRtcEngine {
       print('功能权限检查失败: $e');
     }
   }
-  
+
   /// 检查是否开通了指定功能
   Future<bool> hasFeature(String feature) async {
-    final result = await _channel.invokeMethod('hasFeature', {'feature': feature});
+    final result =
+        await _channel.invokeMethod('hasFeature', {'feature': feature});
     return result as bool? ?? false;
   }
-  
+
   /// 检查是否开通了语聊功能
   Future<bool> hasVoiceFeature() async {
     return hasFeature('voice');
   }
-  
+
   /// 检查是否开通了直播功能
   Future<bool> hasLiveFeature() async {
     return hasFeature('live');
   }
 
   /// 加入频道
-  /// 
+  ///
   /// [channelId] 频道ID
   /// [uid] 用户ID
   /// [token] 鉴权Token
@@ -126,14 +130,14 @@ class SyRtcEngine {
   }
 
   /// 启用/禁用本地音频
-  /// 
+  ///
   /// [enabled] true为启用，false为禁用
   Future<void> enableLocalAudio(bool enabled) async {
     await _channel.invokeMethod('enableLocalAudio', {'enabled': enabled});
   }
 
   /// 静音本地音频
-  /// 
+  ///
   /// [muted] true为静音，false为取消静音
   Future<void> muteLocalAudio(bool muted) async {
     await _channel.invokeMethod('muteLocalAudio', {'muted': muted});
@@ -147,7 +151,7 @@ class SyRtcEngine {
   }
 
   /// 设置客户端角色
-  /// 
+  ///
   /// [role] 角色：'host' 或 'audience'
   Future<void> setClientRole(String role) async {
     await _channel.invokeMethod('setClientRole', {'role': role});
@@ -331,7 +335,8 @@ class SyRtcEngine {
 
   /// 设置默认音频路由
   Future<void> setDefaultAudioRouteToSpeakerphone(bool enabled) async {
-    await _channel.invokeMethod('setDefaultAudioRouteToSpeakerphone', {'enabled': enabled});
+    await _channel.invokeMethod(
+        'setDefaultAudioRouteToSpeakerphone', {'enabled': enabled});
   }
 
   /// 检查扬声器状态
@@ -365,7 +370,8 @@ class SyRtcEngine {
 
   /// 调节所有远端用户音量（0-100）
   Future<void> adjustPlaybackSignalVolume(int volume) async {
-    await _channel.invokeMethod('adjustPlaybackSignalVolume', {'volume': volume});
+    await _channel
+        .invokeMethod('adjustPlaybackSignalVolume', {'volume': volume});
   }
 
   // ==================== Token 刷新 ====================
@@ -378,7 +384,8 @@ class SyRtcEngine {
   // ==================== 音频参数配置 ====================
 
   /// 设置音频配置
-  Future<void> setAudioProfile(SyAudioProfile profile, SyAudioScenario scenario) async {
+  Future<void> setAudioProfile(
+      SyAudioProfile profile, SyAudioScenario scenario) async {
     await _channel.invokeMethod('setAudioProfile', {
       'profile': profile.toString().split('.').last,
       'scenario': scenario.toString().split('.').last,
@@ -401,20 +408,24 @@ class SyRtcEngine {
   Future<List<SyAudioDeviceInfo>> enumerateRecordingDevices() async {
     final result = await _channel.invokeMethod('enumerateRecordingDevices');
     final List<dynamic> devices = result as List<dynamic>? ?? [];
-    return devices.map((d) => SyAudioDeviceInfo(
-      deviceId: d['deviceId'] as String,
-      deviceName: d['deviceName'] as String,
-    )).toList();
+    return devices
+        .map((d) => SyAudioDeviceInfo(
+              deviceId: d['deviceId'] as String,
+              deviceName: d['deviceName'] as String,
+            ))
+        .toList();
   }
 
   /// 获取音频播放设备列表
   Future<List<SyAudioDeviceInfo>> enumeratePlaybackDevices() async {
     final result = await _channel.invokeMethod('enumeratePlaybackDevices');
     final List<dynamic> devices = result as List<dynamic>? ?? [];
-    return devices.map((d) => SyAudioDeviceInfo(
-      deviceId: d['deviceId'] as String,
-      deviceName: d['deviceName'] as String,
-    )).toList();
+    return devices
+        .map((d) => SyAudioDeviceInfo(
+              deviceId: d['deviceId'] as String,
+              deviceName: d['deviceName'] as String,
+            ))
+        .toList();
   }
 
   /// 设置音频采集设备
@@ -471,7 +482,8 @@ class SyRtcEngine {
 
   /// 调节采集音量（0-400，100为原始音量）
   Future<void> adjustRecordingSignalVolume(int volume) async {
-    await _channel.invokeMethod('adjustRecordingSignalVolume', {'volume': volume});
+    await _channel
+        .invokeMethod('adjustRecordingSignalVolume', {'volume': volume});
   }
 
   /// 静音采集信号
@@ -482,37 +494,37 @@ class SyRtcEngine {
   // ==================== 视频基础功能 ====================
 
   /// 启用视频模块（需要live权限）
-  /// 
+  ///
   /// [quality] 视频画质预设（可选，默认标准画质）
   Future<void> enableVideo({SyVideoQualityPreset? quality}) async {
     final hasLive = await hasLiveFeature();
     if (!hasLive) {
       throw Exception('当前AppId未开通直播功能，无法使用视频功能');
     }
-    
+
     // 如果指定了画质，先设置编码配置
     if (quality != null) {
       await setVideoQuality(quality);
     }
-    
+
     await _channel.invokeMethod('enableVideo');
   }
-  
+
   /// 设置视频画质预设
-  /// 
+  ///
   /// [preset] 画质预设（流畅/标准/高清/超清/4K）
   Future<void> setVideoQuality(SyVideoQualityPreset preset) async {
     final hasLive = await hasLiveFeature();
     if (!hasLive) {
       throw Exception('当前AppId未开通直播功能，无法使用视频功能');
     }
-    
+
     final configMap = preset.toEncoderConfigMap();
     await _channel.invokeMethod('setVideoEncoderConfiguration', configMap);
   }
-  
+
   /// 设置音频质量等级
-  /// 
+  ///
   /// [quality] 音频质量等级（低/中/高/超高）
   Future<void> setAudioQuality(SyAudioQualityLevel quality) async {
     await _channel.invokeMethod('setAudioQuality', {
@@ -537,7 +549,8 @@ class SyRtcEngine {
   }
 
   /// 设置视频编码配置
-  Future<void> setVideoEncoderConfiguration(SyVideoEncoderConfiguration config) async {
+  Future<void> setVideoEncoderConfiguration(
+      SyVideoEncoderConfiguration config) async {
     await _channel.invokeMethod('setVideoEncoderConfiguration', {
       'width': config.width,
       'height': config.height,
@@ -546,7 +559,8 @@ class SyRtcEngine {
       'bitrate': config.bitrate,
       'minBitrate': config.minBitrate,
       'orientationMode': config.orientationMode.toString().split('.').last,
-      'degradationPreference': config.degradationPreference.toString().split('.').last,
+      'degradationPreference':
+          config.degradationPreference.toString().split('.').last,
       'mirrorMode': config.mirrorMode.toString().split('.').last,
     });
   }
@@ -630,7 +644,8 @@ class SyRtcEngine {
   }
 
   /// 更新屏幕共享配置
-  Future<void> updateScreenCaptureConfiguration(SyScreenCaptureConfiguration config) async {
+  Future<void> updateScreenCaptureConfiguration(
+      SyScreenCaptureConfiguration config) async {
     await _channel.invokeMethod('updateScreenCaptureConfiguration', {
       'captureMouseCursor': config.captureMouseCursor,
       'captureWindow': config.captureWindow,
@@ -712,13 +727,15 @@ class SyRtcEngine {
 
   /// 设置音乐文件播放位置（毫秒）
   Future<void> setAudioMixingPosition(int position) async {
-    await _channel.invokeMethod('setAudioMixingPosition', {'position': position});
+    await _channel
+        .invokeMethod('setAudioMixingPosition', {'position': position});
   }
 
   // ==================== 音效文件播放 ====================
 
   /// 播放音效
-  Future<void> playEffect(int soundId, SyAudioEffectConfiguration config) async {
+  Future<void> playEffect(
+      int soundId, SyAudioEffectConfiguration config) async {
     await _channel.invokeMethod('playEffect', {
       'soundId': soundId,
       'filePath': config.filePath,
@@ -777,7 +794,8 @@ class SyRtcEngine {
   // ==================== 数据流 ====================
 
   /// 创建数据流
-  Future<int> createDataStream({bool reliable = true, bool ordered = true}) async {
+  Future<int> createDataStream(
+      {bool reliable = true, bool ordered = true}) async {
     final result = await _channel.invokeMethod('createDataStream', {
       'reliable': reliable,
       'ordered': ordered,
@@ -796,12 +814,13 @@ class SyRtcEngine {
   // ==================== 旁路推流 ====================
 
   /// 开始旁路推流
-  /// 
+  ///
   /// [url] 推流地址。如果为空字符串，后端会自动生成我们服务器的RTMP地址
   /// 格式：rtmp://server-ip:1935/live/{appId}_{channelId}
-  /// 
+  ///
   /// 也可以传入第三方CDN的推流地址（如抖音、快手等）
-  Future<void> startRtmpStreamWithTranscoding(String url, SyLiveTranscoding transcoding) async {
+  Future<void> startRtmpStreamWithTranscoding(
+      String url, SyLiveTranscoding transcoding) async {
     await _channel.invokeMethod('startRtmpStreamWithTranscoding', {
       'url': url, // 如果为空，后端会自动生成我们服务器的RTMP地址
       'width': transcoding.width,
@@ -812,15 +831,17 @@ class SyRtcEngine {
       'videoGop': transcoding.videoGop,
       'backgroundColor': transcoding.backgroundColor,
       'watermarkUrl': transcoding.watermarkUrl,
-      'transcodingUsers': transcoding.transcodingUsers?.map((u) => {
-        'uid': u.uid,
-        'x': u.x,
-        'y': u.y,
-        'width': u.width,
-        'height': u.height,
-        'zOrder': u.zOrder,
-        'alpha': u.alpha,
-      }).toList(),
+      'transcodingUsers': transcoding.transcodingUsers
+          ?.map((u) => {
+                'uid': u.uid,
+                'x': u.x,
+                'y': u.y,
+                'width': u.width,
+                'height': u.height,
+                'zOrder': u.zOrder,
+                'alpha': u.alpha,
+              })
+          .toList(),
     });
   }
 
@@ -840,15 +861,17 @@ class SyRtcEngine {
       'videoGop': transcoding.videoGop,
       'backgroundColor': transcoding.backgroundColor,
       'watermarkUrl': transcoding.watermarkUrl,
-      'transcodingUsers': transcoding.transcodingUsers?.map((u) => {
-        'uid': u.uid,
-        'x': u.x,
-        'y': u.y,
-        'width': u.width,
-        'height': u.height,
-        'zOrder': u.zOrder,
-        'alpha': u.alpha,
-      }).toList(),
+      'transcodingUsers': transcoding.transcodingUsers
+          ?.map((u) => {
+                'uid': u.uid,
+                'x': u.x,
+                'y': u.y,
+                'width': u.width,
+                'height': u.height,
+                'zOrder': u.zOrder,
+                'alpha': u.alpha,
+              })
+          .toList(),
     });
   }
 
@@ -860,12 +883,13 @@ class SyRtcEngine {
           final uid = call.arguments['uid'] as String? ?? '';
           final elapsed = call.arguments['elapsed'] as int? ?? 0;
           final event = SyJoinChannelSuccessEvent(
-            channelId: channelId, uid: uid, elapsed: elapsed);
+              channelId: channelId, uid: uid, elapsed: elapsed);
           _eventController.add(event);
           _eventHandler?.onJoinChannelSuccess?.call(channelId, uid, elapsed);
           break;
         case 'onLeaveChannel':
-          final statsMap = call.arguments['stats'] as Map<String, dynamic>? ?? {};
+          final statsMap =
+              call.arguments['stats'] as Map<String, dynamic>? ?? {};
           final stats = SyRtcStats.fromMap(statsMap);
           final event = SyLeaveChannelEvent(stats: stats);
           _eventController.add(event);
@@ -876,12 +900,13 @@ class SyRtcEngine {
           final uid = call.arguments['uid'] as String? ?? '';
           final elapsed = call.arguments['elapsed'] as int? ?? 0;
           final event = SyRejoinChannelSuccessEvent(
-            channelId: channelId, uid: uid, elapsed: elapsed);
+              channelId: channelId, uid: uid, elapsed: elapsed);
           _eventController.add(event);
           _eventHandler?.onRejoinChannelSuccess?.call(channelId, uid, elapsed);
           break;
         case 'onRtcStats':
-          final statsMap = call.arguments['stats'] as Map<String, dynamic>? ?? {};
+          final statsMap =
+              call.arguments['stats'] as Map<String, dynamic>? ?? {};
           final stats = SyRtcStats.fromMap(statsMap);
           final event = SyRtcStatsEvent(stats: stats);
           _eventController.add(event);
@@ -912,7 +937,8 @@ class SyRtcEngine {
           break;
         case 'onVolumeIndication':
           final event = SyVolumeIndicationEvent(
-            speakers: List<Map<String, dynamic>>.from(call.arguments['speakers'] ?? []),
+            speakers: List<Map<String, dynamic>>.from(
+                call.arguments['speakers'] ?? []),
           );
           _eventController.add(event);
           _eventHandler?.onVolumeIndication?.call(event.speakers);
@@ -927,185 +953,195 @@ class SyRtcEngine {
           _eventController.add(event);
           _eventHandler?.onRequestToken?.call();
           break;
-      case 'onConnectionStateChanged':
-        final stateStr = call.arguments['state'] as String? ?? 'disconnected';
-        final reasonStr = call.arguments['reason'] as String? ?? 'connecting';
-        final state = SyConnectionState.values.firstWhere(
-          (e) => e.toString().split('.').last == stateStr,
-          orElse: () => SyConnectionState.disconnected,
-        );
-        final reason = SyConnectionChangedReason.values.firstWhere(
-          (e) => e.toString().split('.').last == reasonStr,
-          orElse: () => SyConnectionChangedReason.connecting,
-        );
-        final event = SyConnectionStateChangedEvent(state: state, reason: reason);
-        _eventController.add(event);
-        _eventHandler?.onConnectionStateChanged?.call(state, reason);
-        break;
-      case 'onNetworkQuality':
-        final uid = call.arguments['uid'] as String? ?? '0';
-        final txStr = call.arguments['txQuality'] as String? ?? 'unknown';
-        final rxStr = call.arguments['rxQuality'] as String? ?? 'unknown';
-        final txQuality = SyNetworkQuality.values.firstWhere(
-          (e) => e.toString().split('.').last == txStr,
-          orElse: () => SyNetworkQuality.unknown,
-        );
-        final rxQuality = SyNetworkQuality.values.firstWhere(
-          (e) => e.toString().split('.').last == rxStr,
-          orElse: () => SyNetworkQuality.unknown,
-        );
-        final event = SyNetworkQualityEvent(uid: uid, txQuality: txQuality, rxQuality: rxQuality);
-        _eventController.add(event);
-        _eventHandler?.onNetworkQuality?.call(uid, txQuality, rxQuality);
-        break;
-      case 'onRemoteAudioStateChanged':
-        final uid = call.arguments['uid'] as String;
-        final stateStr = call.arguments['state'] as String? ?? 'stopped';
-        final reasonStr = call.arguments['reason'] as String? ?? 'internal';
-        final elapsed = call.arguments['elapsed'] as int? ?? 0;
-        final state = SyRemoteAudioState.values.firstWhere(
-          (e) => e.toString().split('.').last == stateStr,
-          orElse: () => SyRemoteAudioState.stopped,
-        );
-        final reason = SyRemoteAudioStateReason.values.firstWhere(
-          (e) => e.toString().split('.').last == reasonStr,
-          orElse: () => SyRemoteAudioStateReason.internal,
-        );
-        final event = SyRemoteAudioStateChangedEvent(
-          uid: uid,
-          state: state,
-          reason: reason,
-          elapsed: elapsed,
-        );
-        _eventController.add(event);
-        _eventHandler?.onRemoteAudioStateChanged?.call(uid, state, reason, elapsed);
-        break;
-      case 'onRemoteVideoStateChanged':
-        final uid = call.arguments['uid'] as String;
-        final stateStr = call.arguments['state'] as String? ?? 'stopped';
-        final reasonStr = call.arguments['reason'] as String? ?? 'internal';
-        final elapsed = call.arguments['elapsed'] as int? ?? 0;
-        final state = SyRemoteVideoState.values.firstWhere(
-          (e) => e.toString().split('.').last == stateStr,
-          orElse: () => SyRemoteVideoState.stopped,
-        );
-        final reason = SyRemoteVideoStateReason.values.firstWhere(
-          (e) => e.toString().split('.').last == reasonStr,
-          orElse: () => SyRemoteVideoStateReason.internal,
-        );
-        final event = SyRemoteVideoStateChangedEvent(
-          uid: uid,
-          state: state,
-          reason: reason,
-          elapsed: elapsed,
-        );
-        _eventController.add(event);
-        _eventHandler?.onRemoteVideoStateChanged?.call(uid, state, reason, elapsed);
-        break;
-      case 'onLocalAudioStateChanged':
-        final stateStr = call.arguments['state'] as String? ?? 'stopped';
-        final errorStr = call.arguments['error'] as String? ?? 'ok';
-        final state = SyLocalAudioStreamState.values.firstWhere(
-          (e) => e.toString().split('.').last == stateStr,
-          orElse: () => SyLocalAudioStreamState.stopped,
-        );
-        final error = SyLocalAudioStreamError.values.firstWhere(
-          (e) => e.toString().split('.').last == errorStr,
-          orElse: () => SyLocalAudioStreamError.ok,
-        );
-        final event = SyLocalAudioStateChangedEvent(state: state, error: error);
-        _eventController.add(event);
-        _eventHandler?.onLocalAudioStateChanged?.call(state, error);
-        break;
-      case 'onLocalVideoStateChanged':
-        final stateStr = call.arguments['state'] as String? ?? 'stopped';
-        final errorStr = call.arguments['error'] as String? ?? 'ok';
-        final state = SyLocalVideoStreamState.values.firstWhere(
-          (e) => e.toString().split('.').last == stateStr,
-          orElse: () => SyLocalVideoStreamState.stopped,
-        );
-        final error = SyLocalVideoStreamError.values.firstWhere(
-          (e) => e.toString().split('.').last == errorStr,
-          orElse: () => SyLocalVideoStreamError.ok,
-        );
-        final event = SyLocalVideoStateChangedEvent(state: state, error: error);
-        _eventController.add(event);
-        _eventHandler?.onLocalVideoStateChanged?.call(state, error);
-        break;
-      case 'onAudioRoutingChanged':
-        final routing = call.arguments['routing'] as int? ?? 0;
-        final event = SyAudioRoutingChangedEvent(routing: routing);
-        _eventController.add(event);
-        _eventHandler?.onAudioRoutingChanged?.call(routing);
-        break;
-      case 'onStreamMessage':
-        final uid = call.arguments['uid'] as String;
-        final streamId = call.arguments['streamId'] as int;
-        final data = List<int>.from(call.arguments['data'] ?? []);
-        final event = SyStreamMessageEvent(uid: uid, streamId: streamId, data: data);
-        _eventController.add(event);
-        _eventHandler?.onStreamMessage?.call(uid, streamId, data);
-        break;
-      case 'onStreamMessageError':
-        final uid = call.arguments['uid'] as String;
-        final streamId = call.arguments['streamId'] as int;
-        final code = call.arguments['code'] as int? ?? 0;
-        final missed = call.arguments['missed'] as int? ?? 0;
-        final cached = call.arguments['cached'] as int? ?? 0;
-        final event = SyStreamMessageErrorEvent(
-          uid: uid,
-          streamId: streamId,
-          code: code,
-          missed: missed,
-          cached: cached,
-        );
-        _eventController.add(event);
-        _eventHandler?.onStreamMessageError?.call(uid, streamId, code, missed, cached);
-        break;
-      case 'onChannelMessage':
-        final uid = call.arguments['uid'] as String? ?? '';
-        final message = call.arguments['message'] as String? ?? '';
-        final rawEvent = SyChannelMessageEvent(uid: uid, message: message);
-        _eventController.add(rawEvent);
-        _eventHandler?.onChannelMessage?.call(uid, message);
-        break;
-      case 'onFirstRemoteVideoDecoded':
-        final uid = call.arguments['uid'] as String;
-        final width = call.arguments['width'] as int? ?? 0;
-        final height = call.arguments['height'] as int? ?? 0;
-        final elapsed = call.arguments['elapsed'] as int? ?? 0;
-        final event = SyFirstRemoteVideoDecodedEvent(
-          uid: uid, width: width, height: height, elapsed: elapsed);
-        _eventController.add(event);
-        _eventHandler?.onFirstRemoteVideoDecoded?.call(uid, width, height, elapsed);
-        break;
-      case 'onFirstRemoteVideoFrame':
-        final uid = call.arguments['uid'] as String;
-        final width = call.arguments['width'] as int? ?? 0;
-        final height = call.arguments['height'] as int? ?? 0;
-        final elapsed = call.arguments['elapsed'] as int? ?? 0;
-        final event = SyFirstRemoteVideoFrameEvent(
-          uid: uid, width: width, height: height, elapsed: elapsed);
-        _eventController.add(event);
-        _eventHandler?.onFirstRemoteVideoFrame?.call(uid, width, height, elapsed);
-        break;
-      case 'onVideoSizeChanged':
-        final uid = call.arguments['uid'] as String;
-        final width = call.arguments['width'] as int? ?? 0;
-        final height = call.arguments['height'] as int? ?? 0;
-        final rotation = call.arguments['rotation'] as int? ?? 0;
-        final event = SyVideoSizeChangedEvent(
-          uid: uid, width: width, height: height, rotation: rotation);
-        _eventController.add(event);
-        _eventHandler?.onVideoSizeChanged?.call(uid, width, height, rotation);
-        break;
-      case 'onError':
-        final errCode = call.arguments['errCode'] as int? ?? 0;
-        final errMsg = call.arguments['errMsg'] as String? ?? 'Unknown error';
-        final event = SyErrorEvent(errCode: errCode, errMsg: errMsg);
-        _eventController.add(event);
-        _eventHandler?.onError?.call(errCode, errMsg);
-        break;
+        case 'onConnectionStateChanged':
+          final stateStr = call.arguments['state'] as String? ?? 'disconnected';
+          final reasonStr = call.arguments['reason'] as String? ?? 'connecting';
+          final state = SyConnectionState.values.firstWhere(
+            (e) => e.toString().split('.').last == stateStr,
+            orElse: () => SyConnectionState.disconnected,
+          );
+          final reason = SyConnectionChangedReason.values.firstWhere(
+            (e) => e.toString().split('.').last == reasonStr,
+            orElse: () => SyConnectionChangedReason.connecting,
+          );
+          final event =
+              SyConnectionStateChangedEvent(state: state, reason: reason);
+          _eventController.add(event);
+          _eventHandler?.onConnectionStateChanged?.call(state, reason);
+          break;
+        case 'onNetworkQuality':
+          final uid = call.arguments['uid'] as String? ?? '0';
+          final txStr = call.arguments['txQuality'] as String? ?? 'unknown';
+          final rxStr = call.arguments['rxQuality'] as String? ?? 'unknown';
+          final txQuality = SyNetworkQuality.values.firstWhere(
+            (e) => e.toString().split('.').last == txStr,
+            orElse: () => SyNetworkQuality.unknown,
+          );
+          final rxQuality = SyNetworkQuality.values.firstWhere(
+            (e) => e.toString().split('.').last == rxStr,
+            orElse: () => SyNetworkQuality.unknown,
+          );
+          final event = SyNetworkQualityEvent(
+              uid: uid, txQuality: txQuality, rxQuality: rxQuality);
+          _eventController.add(event);
+          _eventHandler?.onNetworkQuality?.call(uid, txQuality, rxQuality);
+          break;
+        case 'onRemoteAudioStateChanged':
+          final uid = call.arguments['uid'] as String;
+          final stateStr = call.arguments['state'] as String? ?? 'stopped';
+          final reasonStr = call.arguments['reason'] as String? ?? 'internal';
+          final elapsed = call.arguments['elapsed'] as int? ?? 0;
+          final state = SyRemoteAudioState.values.firstWhere(
+            (e) => e.toString().split('.').last == stateStr,
+            orElse: () => SyRemoteAudioState.stopped,
+          );
+          final reason = SyRemoteAudioStateReason.values.firstWhere(
+            (e) => e.toString().split('.').last == reasonStr,
+            orElse: () => SyRemoteAudioStateReason.internal,
+          );
+          final event = SyRemoteAudioStateChangedEvent(
+            uid: uid,
+            state: state,
+            reason: reason,
+            elapsed: elapsed,
+          );
+          _eventController.add(event);
+          _eventHandler?.onRemoteAudioStateChanged
+              ?.call(uid, state, reason, elapsed);
+          break;
+        case 'onRemoteVideoStateChanged':
+          final uid = call.arguments['uid'] as String;
+          final stateStr = call.arguments['state'] as String? ?? 'stopped';
+          final reasonStr = call.arguments['reason'] as String? ?? 'internal';
+          final elapsed = call.arguments['elapsed'] as int? ?? 0;
+          final state = SyRemoteVideoState.values.firstWhere(
+            (e) => e.toString().split('.').last == stateStr,
+            orElse: () => SyRemoteVideoState.stopped,
+          );
+          final reason = SyRemoteVideoStateReason.values.firstWhere(
+            (e) => e.toString().split('.').last == reasonStr,
+            orElse: () => SyRemoteVideoStateReason.internal,
+          );
+          final event = SyRemoteVideoStateChangedEvent(
+            uid: uid,
+            state: state,
+            reason: reason,
+            elapsed: elapsed,
+          );
+          _eventController.add(event);
+          _eventHandler?.onRemoteVideoStateChanged
+              ?.call(uid, state, reason, elapsed);
+          break;
+        case 'onLocalAudioStateChanged':
+          final stateStr = call.arguments['state'] as String? ?? 'stopped';
+          final errorStr = call.arguments['error'] as String? ?? 'ok';
+          final state = SyLocalAudioStreamState.values.firstWhere(
+            (e) => e.toString().split('.').last == stateStr,
+            orElse: () => SyLocalAudioStreamState.stopped,
+          );
+          final error = SyLocalAudioStreamError.values.firstWhere(
+            (e) => e.toString().split('.').last == errorStr,
+            orElse: () => SyLocalAudioStreamError.ok,
+          );
+          final event =
+              SyLocalAudioStateChangedEvent(state: state, error: error);
+          _eventController.add(event);
+          _eventHandler?.onLocalAudioStateChanged?.call(state, error);
+          break;
+        case 'onLocalVideoStateChanged':
+          final stateStr = call.arguments['state'] as String? ?? 'stopped';
+          final errorStr = call.arguments['error'] as String? ?? 'ok';
+          final state = SyLocalVideoStreamState.values.firstWhere(
+            (e) => e.toString().split('.').last == stateStr,
+            orElse: () => SyLocalVideoStreamState.stopped,
+          );
+          final error = SyLocalVideoStreamError.values.firstWhere(
+            (e) => e.toString().split('.').last == errorStr,
+            orElse: () => SyLocalVideoStreamError.ok,
+          );
+          final event =
+              SyLocalVideoStateChangedEvent(state: state, error: error);
+          _eventController.add(event);
+          _eventHandler?.onLocalVideoStateChanged?.call(state, error);
+          break;
+        case 'onAudioRoutingChanged':
+          final routing = call.arguments['routing'] as int? ?? 0;
+          final event = SyAudioRoutingChangedEvent(routing: routing);
+          _eventController.add(event);
+          _eventHandler?.onAudioRoutingChanged?.call(routing);
+          break;
+        case 'onStreamMessage':
+          final uid = call.arguments['uid'] as String;
+          final streamId = call.arguments['streamId'] as int;
+          final data = List<int>.from(call.arguments['data'] ?? []);
+          final event =
+              SyStreamMessageEvent(uid: uid, streamId: streamId, data: data);
+          _eventController.add(event);
+          _eventHandler?.onStreamMessage?.call(uid, streamId, data);
+          break;
+        case 'onStreamMessageError':
+          final uid = call.arguments['uid'] as String;
+          final streamId = call.arguments['streamId'] as int;
+          final code = call.arguments['code'] as int? ?? 0;
+          final missed = call.arguments['missed'] as int? ?? 0;
+          final cached = call.arguments['cached'] as int? ?? 0;
+          final event = SyStreamMessageErrorEvent(
+            uid: uid,
+            streamId: streamId,
+            code: code,
+            missed: missed,
+            cached: cached,
+          );
+          _eventController.add(event);
+          _eventHandler?.onStreamMessageError
+              ?.call(uid, streamId, code, missed, cached);
+          break;
+        case 'onChannelMessage':
+          final uid = call.arguments['uid'] as String? ?? '';
+          final message = call.arguments['message'] as String? ?? '';
+          final rawEvent = SyChannelMessageEvent(uid: uid, message: message);
+          _eventController.add(rawEvent);
+          _eventHandler?.onChannelMessage?.call(uid, message);
+          break;
+        case 'onFirstRemoteVideoDecoded':
+          final uid = call.arguments['uid'] as String;
+          final width = call.arguments['width'] as int? ?? 0;
+          final height = call.arguments['height'] as int? ?? 0;
+          final elapsed = call.arguments['elapsed'] as int? ?? 0;
+          final event = SyFirstRemoteVideoDecodedEvent(
+              uid: uid, width: width, height: height, elapsed: elapsed);
+          _eventController.add(event);
+          _eventHandler?.onFirstRemoteVideoDecoded
+              ?.call(uid, width, height, elapsed);
+          break;
+        case 'onFirstRemoteVideoFrame':
+          final uid = call.arguments['uid'] as String;
+          final width = call.arguments['width'] as int? ?? 0;
+          final height = call.arguments['height'] as int? ?? 0;
+          final elapsed = call.arguments['elapsed'] as int? ?? 0;
+          final event = SyFirstRemoteVideoFrameEvent(
+              uid: uid, width: width, height: height, elapsed: elapsed);
+          _eventController.add(event);
+          _eventHandler?.onFirstRemoteVideoFrame
+              ?.call(uid, width, height, elapsed);
+          break;
+        case 'onVideoSizeChanged':
+          final uid = call.arguments['uid'] as String;
+          final width = call.arguments['width'] as int? ?? 0;
+          final height = call.arguments['height'] as int? ?? 0;
+          final rotation = call.arguments['rotation'] as int? ?? 0;
+          final event = SyVideoSizeChangedEvent(
+              uid: uid, width: width, height: height, rotation: rotation);
+          _eventController.add(event);
+          _eventHandler?.onVideoSizeChanged?.call(uid, width, height, rotation);
+          break;
+        case 'onError':
+          final errCode = call.arguments['errCode'] as int? ?? 0;
+          final errMsg = call.arguments['errMsg'] as String? ?? 'Unknown error';
+          final event = SyErrorEvent(errCode: errCode, errMsg: errMsg);
+          _eventController.add(event);
+          _eventHandler?.onError?.call(errCode, errMsg);
+          break;
         default:
           break;
       }

@@ -23,8 +23,8 @@ class _RoomListPageState extends State<RoomListPage> {
   List<SyRoomInfo> _rooms = [];
   bool _loading = false;
   String? _error;
-  final _channelIdController = TextEditingController();
-  final _uidController = TextEditingController(text: 'user_${DateTime.now().millisecondsSinceEpoch % 10000}');
+  final _uidController = TextEditingController(
+      text: 'user_${DateTime.now().millisecondsSinceEpoch % 10000}');
 
   @override
   void initState() {
@@ -39,45 +39,75 @@ class _RoomListPageState extends State<RoomListPage> {
     });
     try {
       final rooms = await widget.roomService.getRoomList();
-      if (mounted) {
-        setState(() {
-          _rooms = rooms;
-          _loading = false;
-        });
-      }
+      if (mounted) setState(() { _rooms = rooms; _loading = false; });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _loading = false;
-        });
-      }
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
     }
   }
 
-  Future<void> _createRoom() async {
-    final channelId = _channelIdController.text.trim();
-    if (channelId.isEmpty) {
+  void _showCreateRoomDialog() {
+    final uid = _uidController.text.trim();
+    if (uid.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请输入房间ID')),
+        const SnackBar(content: Text('请先填写用户 ID')),
       );
       return;
     }
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('创建房间'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: '房间 ID',
+            hintText: '例如: my_room_001',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final id = controller.text.trim();
+              if (id.isNotEmpty) {
+                Navigator.pop(ctx);
+                _doCreateRoom(id);
+              }
+            },
+            child: const Text('创建'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _doCreateRoom(String channelId) async {
+    widget.roomService.setUserId(_uidController.text.trim());
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
     try {
       await widget.roomService.createRoom(channelId);
-      _channelIdController.clear();
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('房间 $channelId 创建成功'), backgroundColor: Colors.green),
+      );
       _fetchRooms();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('房间 $channelId 创建成功')),
-        );
-      }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('创建失败: $e')),
-        );
-      }
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('创建失败: $e'), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -85,7 +115,7 @@ class _RoomListPageState extends State<RoomListPage> {
     final uid = _uidController.text.trim();
     if (uid.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请输入用户ID')),
+        const SnackBar(content: Text('请先填写用户 ID')),
       );
       return;
     }
@@ -115,26 +145,14 @@ class _RoomListPageState extends State<RoomListPage> {
             token: token,
           ),
         ),
-      );
+      ).then((_) => _fetchRooms());
     } catch (e) {
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('获取 Token 失败: $e')),
-        );
-      }
-    }
-  }
-
-  void _quickJoin() {
-    final channelId = _channelIdController.text.trim();
-    if (channelId.isEmpty) {
+      if (!mounted) return;
+      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请输入房间ID')),
+        SnackBar(content: Text('加入失败: $e'), backgroundColor: Colors.red),
       );
-      return;
     }
-    _joinRoom(channelId);
   }
 
   @override
@@ -143,11 +161,13 @@ class _RoomListPageState extends State<RoomListPage> {
       appBar: AppBar(
         title: const Text('房间列表'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchRooms,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchRooms),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showCreateRoomDialog,
+        icon: const Icon(Icons.add),
+        label: const Text('创建房间'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -156,55 +176,23 @@ class _RoomListPageState extends State<RoomListPage> {
           children: [
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('快速加入 / 创建房间',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _uidController,
-                      decoration: const InputDecoration(
-                        labelText: '用户 ID',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _channelIdController,
-                            decoration: const InputDecoration(
-                              labelText: '房间 ID',
-                              hintText: '输入房间ID加入或创建',
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: _quickJoin,
-                          child: const Text('加入'),
-                        ),
-                        const SizedBox(width: 4),
-                        OutlinedButton(
-                          onPressed: _createRoom,
-                          child: const Text('创建'),
-                        ),
-                      ],
-                    ),
-                  ],
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: TextField(
+                  controller: _uidController,
+                  decoration: const InputDecoration(
+                    labelText: '我的用户 ID',
+                    prefixIcon: Icon(Icons.person),
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                const Text('活跃房间', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const Text('活跃房间',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const Spacer(),
                 Text('${_rooms.length} 个房间',
                     style: TextStyle(color: Colors.grey[400], fontSize: 13)),
@@ -221,12 +209,15 @@ class _RoomListPageState extends State<RoomListPage> {
                             children: [
                               Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
                               const SizedBox(height: 8),
-                              Text(_error!, textAlign: TextAlign.center),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 24),
+                                child: Text(_error!,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(fontSize: 13)),
+                              ),
                               const SizedBox(height: 12),
                               ElevatedButton(
-                                onPressed: _fetchRooms,
-                                child: const Text('重试'),
-                              ),
+                                  onPressed: _fetchRooms, child: const Text('重试')),
                             ],
                           ),
                         )
@@ -240,7 +231,7 @@ class _RoomListPageState extends State<RoomListPage> {
                                   const SizedBox(height: 8),
                                   const Text('暂无活跃房间'),
                                   const SizedBox(height: 4),
-                                  const Text('输入房间ID直接加入，或创建新房间',
+                                  const Text('点击右下角 "创建房间" 开始',
                                       style: TextStyle(fontSize: 12, color: Colors.grey)),
                                 ],
                               ),
@@ -257,14 +248,17 @@ class _RoomListPageState extends State<RoomListPage> {
                                         backgroundColor: room.status == 'active'
                                             ? Colors.green
                                             : Colors.grey,
-                                        child: const Icon(Icons.mic, color: Colors.white),
+                                        child: const Icon(Icons.mic,
+                                            color: Colors.white, size: 20),
                                       ),
-                                      title: Text(room.channelId),
+                                      title: Text(room.channelId,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w600)),
                                       subtitle: Text(
-                                        '在线: ${room.onlineCount} 人 · ${room.status}',
-                                      ),
-                                      trailing: ElevatedButton(
-                                        onPressed: () => _joinRoom(room.channelId),
+                                          '在线: ${room.onlineCount} 人'),
+                                      trailing: FilledButton(
+                                        onPressed: () =>
+                                            _joinRoom(room.channelId),
                                         child: const Text('加入'),
                                       ),
                                     ),
@@ -281,7 +275,6 @@ class _RoomListPageState extends State<RoomListPage> {
 
   @override
   void dispose() {
-    _channelIdController.dispose();
     _uidController.dispose();
     super.dispose();
   }

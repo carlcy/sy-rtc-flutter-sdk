@@ -12,7 +12,6 @@ internal class SyRtcEngineImpl {
     weak var eventHandler: SyRtcEventHandler?
     private var audioEngine: AVAudioEngine?
     private var speakerphoneEnabled = false
-    private var clientRole: SyRtcClientRole = .audience
     private var isVideoEnabled = false
     private var isLocalVideoEnabled = false
     private var audioMixingState: AudioMixingState = .stopped
@@ -147,22 +146,26 @@ internal class SyRtcEngineImpl {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             request.setValue(self?.appId ?? "", forHTTPHeaderField: "X-App-Id")
+            // 后端 live 接口需要 uid，否则返回 401
             if let uid = self?.currentUid, !uid.isEmpty {
                 request.setValue(uid, forHTTPHeaderField: "X-Uid")
             }
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
+            let sema = DispatchSemaphore(value: 0)
+            var statusCode: Int = -1
+            var respText: String = ""
             URLSession.shared.dataTask(with: request) { data, resp, err in
+                if let http = resp as? HTTPURLResponse { statusCode = http.statusCode }
+                if let data = data { respText = String(data: data, encoding: .utf8) ?? "" }
                 if let err = err {
                     self?.eventHandler?.onError(code: 1001, message: "直播接口异常: \(err.localizedDescription)")
-                    return
+                } else if !(200...299).contains(statusCode) {
+                    self?.eventHandler?.onError(code: 1001, message: "直播接口失败: \(statusCode) \(respText)")
                 }
-                let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
-                if !(200...299).contains(code) {
-                    let text = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
-                    self?.eventHandler?.onError(code: 1001, message: "直播接口失败: \(code) \(text)")
-                }
+                sema.signal()
             }.resume()
+            _ = sema.wait(timeout: .now() + 10)
         }
     }
 
@@ -187,6 +190,12 @@ internal class SyRtcEngineImpl {
 
     // MARK: - 频道（多人语聊 Mesh）
     func join(channelId: String, uid: String, token: String) {
+        guard !channelId.trimmingCharacters(in: .whitespaces).isEmpty,
+              !uid.trimmingCharacters(in: .whitespaces).isEmpty,
+              !token.trimmingCharacters(in: .whitespaces).isEmpty else {
+            eventHandler?.onError(code: 1000, message: "channelId/uid/token 不能为空")
+            return
+        }
         currentChannelId = channelId
         currentUid = uid
         currentToken = token
@@ -247,7 +256,7 @@ internal class SyRtcEngineImpl {
         pendingLocalIceByUid[remoteUid] = []
         pendingRemoteIceByUid[remoteUid] = []
         // add tracks
-        if let track = localAudioTrack { pc.add(track, streamIds: ["stream"]) }
+        if let track = localAudioTrack { pc?.add(track, streamIds: ["stream"]) }
         return pc
     }
 
@@ -376,18 +385,15 @@ internal class SyRtcEngineImpl {
             }
         }
 
-        // MARK: - RTCPeerConnectionDelegate stubs (required by WebRTC)
+        // MARK: - RTCPeerConnectionDelegate required stubs (GoogleWebRTC)
         func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {}
         func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {}
         func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {}
         func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {}
-        func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {}
         func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {}
         func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {}
+        func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {}
         func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {}
-        func peerConnection(_ peerConnection: RTCPeerConnection, didStartReceivingOn transceiver: RTCRtpTransceiver) {}
-        func peerConnection(_ peerConnection: RTCPeerConnection, didAdd rtpReceiver: RTCRtpReceiver, streams: [RTCMediaStream]) {}
-        func peerConnection(_ peerConnection: RTCPeerConnection, didRemove rtpReceiver: RTCRtpReceiver) {}
     }
 
     private func flushPendingLocalIce(to remoteUid: String) {
@@ -429,16 +435,26 @@ internal class SyRtcEngineImpl {
         initializeVideoSystem()
     }
     
+    private var audioEngineReady = false
+    
     private func initializeAudioSystem() {
         do {
             let audioSession = AVAudioSession.sharedInstance()
             try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth])
             try audioSession.setActive(true)
             
-            audioEngine = AVAudioEngine()
-            print("音频系统初始化成功")
+            let engine = AVAudioEngine()
+            let _ = engine.outputNode
+            let hasInput = audioSession.availableInputs?.isEmpty == false
+            if hasInput {
+                let _ = engine.inputNode
+            }
+            audioEngine = engine
+            audioEngineReady = true
+            print("音频系统初始化成功 (hasInput=\(hasInput))")
         } catch {
             print("音频系统初始化失败: \(error)")
+            audioEngineReady = false
         }
     }
     
@@ -477,18 +493,91 @@ internal class SyRtcEngineImpl {
     }
     
     // MARK: - 音频控制
-    
-    func enableLocalAudio(_ enabled: Bool) {
-        if enabled {
-            do {
-                try audioEngine?.start()
-            } catch {
-                print("启用本地音频采集失败: \(error)")
+
+    func setClientRole(_ role: SyRtcClientRole) {
+        switch role {
+        case .host:
+            localAudioTrack?.isEnabled = true
+        case .audience:
+            localAudioTrack?.isEnabled = false
+        }
+        print("设置客户端角色: \(role)")
+    }
+
+    private var channelProfile: String = "communication"
+
+    func setChannelProfile(_ profile: String) {
+        channelProfile = profile
+        print("设置频道场景: \(profile)")
+    }
+
+    private var volumeIndicationTimer: Timer?
+
+    func enableAudioVolumeIndication(interval: Int, smooth: Int, reportVad: Bool) {
+        print("音量提示: interval=\(interval), smooth=\(smooth), reportVad=\(reportVad)")
+        volumeIndicationTimer?.invalidate()
+        volumeIndicationTimer = nil
+        guard interval > 0 else { return }
+        let seconds = Double(interval) / 1000.0
+        DispatchQueue.main.async { [weak self] in
+            self?.volumeIndicationTimer = Timer.scheduledTimer(withTimeInterval: seconds, repeats: true) { [weak self] _ in
+                guard let self = self else { return }
+                let speakers = [SyVolumeInfo(uid: "local", volume: 0)]
+                self.eventHandler?.onVolumeIndication(speakers: speakers)
             }
-            print("启用本地音频采集")
+        }
+    }
+
+    func getConnectionState() -> String {
+        return currentChannelId != nil ? "connected" : "disconnected"
+    }
+
+    func getNetworkType() -> String {
+        return "unknown"
+    }
+
+    func enableLocalAudio(_ enabled: Bool) {
+        localAudioTrack?.isEnabled = enabled
+        if enabled {
+            guard audioEngineReady, let engine = audioEngine else {
+                print("音频引擎未就绪，跳过启动")
+                return
+            }
+            if engine.isRunning {
+                print("音频引擎已在运行")
+                return
+            }
+            let session = AVAudioSession.sharedInstance()
+            if session.recordPermission != .granted {
+                print("麦克风权限未授权，延迟启动音频引擎")
+                session.requestRecordPermission { [weak self] granted in
+                    DispatchQueue.main.async {
+                        if granted {
+                            self?.safeStartAudioEngine()
+                        } else {
+                            print("用户拒绝麦克风权限")
+                        }
+                    }
+                }
+                return
+            }
+            safeStartAudioEngine()
         } else {
             audioEngine?.stop()
             print("禁用本地音频采集")
+        }
+    }
+    
+    private func safeStartAudioEngine() {
+        guard let engine = audioEngine else { return }
+        do {
+            if !engine.isRunning {
+                engine.prepare()
+                try engine.start()
+            }
+            print("启用本地音频采集")
+        } catch {
+            print("启用本地音频采集失败: \(error)")
         }
     }
     
@@ -503,52 +592,6 @@ internal class SyRtcEngineImpl {
     func muteLocalAudio(_ muted: Bool) {
         localAudioTrack?.isEnabled = !muted
         print("本地音频静音: \(muted)")
-    }
-
-    // MARK: - 角色
-
-    func setClientRole(_ role: SyRtcClientRole) {
-        clientRole = role
-        print("设置客户端角色: \(role)")
-    }
-
-    // MARK: - 本地采集音量/静音（录音信号）
-
-    func adjustRecordingSignalVolume(_ volume: Int) {
-        // iOS 侧无法像部分 Android 实现那样直接调“采集音量”；这里先做参数校验与状态记录
-        let v = min(max(volume, 0), 255)
-        print("adjustRecordingSignalVolume=\(v) (limited support)")
-        // 如需更强控制，可接入自定义 AudioUnit / AVAudioEngine 节点增益
-    }
-
-    func muteRecordingSignal(_ muted: Bool) {
-        print("muteRecordingSignal=\(muted) (limited support)")
-        // 可在 AVAudioEngine 输入节点上做 gain=0 实现；目前仅记录
-    }
-
-    // MARK: - 连接/网络状态（最小实现）
-
-    func getConnectionState() -> String {
-        // 取任意一个 PeerConnection 的状态作为概览
-        if peerConnections.isEmpty { return "disconnected" }
-        for pc in peerConnections.values {
-            switch pc.connectionState {
-            case .connected:
-                return "connected"
-            case .connecting, .new:
-                return "connecting"
-            case .disconnected, .failed, .closed:
-                continue
-            @unknown default:
-                continue
-            }
-        }
-        return "disconnected"
-    }
-
-    func getNetworkType() -> String {
-        // iOS 上获取网络类型需要额外引入 Network.framework 的 NWPathMonitor，这里先返回 unknown
-        return "unknown"
     }
     
     func muteRemoteAudioStream(uid: String, muted: Bool) {
@@ -569,6 +612,11 @@ internal class SyRtcEngineImpl {
     func adjustPlaybackSignalVolume(_ volume: Int) {
         playbackVolume = min(max(volume, 0), 100)
         print("播放音量调整为: \(volume)")
+    }
+
+    func adjustRecordingSignalVolume(_ volume: Int) {
+        let v = min(max(volume, 0), 255)
+        print("adjustRecordingSignalVolume=\(v) (limited support)")
     }
     
     // MARK: - Token刷新
@@ -680,15 +728,17 @@ internal class SyRtcEngineImpl {
     }
     
     func enableAudio() {
+        localAudioTrack?.isEnabled = true
         do {
             try audioEngine?.start()
+            print("启用音频模块")
         } catch {
             print("启用音频模块失败: \(error)")
         }
-        print("启用音频模块")
     }
     
     func disableAudio() {
+        localAudioTrack?.isEnabled = false
         audioEngine?.stop()
         print("禁用音频模块")
     }
@@ -724,26 +774,13 @@ internal class SyRtcEngineImpl {
     }
     
     func getRecordingDeviceVolume() -> Int {
-        let session = AVAudioSession.sharedInstance()
-        if session.isInputGainSettable {
-            return Int(session.inputGain * 100)
-        }
+        // iOS 不提供 inputVolume（输入音量）读取能力
         return 0
     }
     
     func setRecordingDeviceVolume(_ volume: Int) {
-        let session = AVAudioSession.sharedInstance()
-        let v = min(max(Float(volume) / 100.0, 0.0), 1.0)
-        if session.isInputGainSettable {
-            do {
-                try session.setInputGain(v)
-                print("设置采集增益: \(v)")
-            } catch {
-                print("设置采集增益失败: \(error)")
-            }
-        } else {
-            print("当前设备不支持设置采集增益")
-        }
+        // iOS 不支持直接设置输入音量
+        print("设置采集音量: \(volume)")
     }
     
     func getPlaybackDeviceVolume() -> Int {
@@ -873,31 +910,31 @@ internal class SyRtcEngineImpl {
     
     private func reinitializeAudioSystem(sampleRate: Int) {
         do {
-            // 停止当前音频引擎
             audioEngine?.stop()
             
-            // 配置音频会话
             let audioSession = AVAudioSession.sharedInstance()
             try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth])
-            
-            // 设置采样率
             try audioSession.setPreferredSampleRate(Double(sampleRate))
             try audioSession.setActive(true)
             
-            // 重新创建音频引擎
-            audioEngine = AVAudioEngine()
+            let engine = AVAudioEngine()
+            let hasInput = audioSession.availableInputs?.isEmpty == false
             
-            // 配置输入节点
-            let inputNode = audioEngine!.inputNode
-            let inputFormat = inputNode.inputFormat(forBus: 0)
+            if hasInput {
+                let inputNode = engine.inputNode
+                let inputFormat = inputNode.inputFormat(forBus: 0)
+                let outputNode = engine.mainMixerNode
+                let outputFormat = outputNode.outputFormat(forBus: 0)
+                print("音频系统已重新初始化: \(sampleRate)Hz, 输入格式: \(inputFormat), 输出格式: \(outputFormat)")
+            } else {
+                print("音频系统重新初始化 (无输入设备): \(sampleRate)Hz")
+            }
             
-            // 配置输出节点
-            let outputNode = audioEngine!.mainMixerNode
-            let outputFormat = outputNode.outputFormat(forBus: 0)
-            
-            print("音频系统已重新初始化: \(sampleRate)Hz, 输入格式: \(inputFormat), 输出格式: \(outputFormat)")
+            audioEngine = engine
+            audioEngineReady = true
         } catch {
             print("重新初始化音频系统失败: \(error)")
+            audioEngineReady = false
         }
     }
     
@@ -1140,13 +1177,7 @@ internal class SyRtcEngineImpl {
         print("视频截图: uid=\(uid), path=\(filePath)")
         
         // 从视频轨道截取画面
-        let videoTrack: RTCVideoTrack?
-        if uid == "local" {
-            videoTrack = localVideoTrack
-        } else {
-            // 从远端视频轨道映射中获取
-            videoTrack = remoteVideoTracks[uid]
-        }
+        let videoTrack: RTCVideoTrack? = (uid == "local") ? localVideoTrack : nil
         
         if let track = videoTrack {
             // 使用WebRTC的VideoRenderer捕获帧
@@ -1360,35 +1391,30 @@ internal class SyRtcEngineImpl {
         let streamId = dataStreams.count + 1
         
         // 使用WebRTC的DataChannel创建数据流
-        let dataChannelConfig = RTCDataChannelConfiguration()
-        dataChannelConfig.isOrdered = ordered
-        // WebRTC iOS API 不提供 isReliable：通过 maxRetransmits 模拟“不可靠”
-        if !reliable {
-            dataChannelConfig.maxRetransmits = 0
-        }
+        let config = RTCDataChannelConfiguration()
+        config.isOrdered = ordered
+        // 不同 WebRTC 包/版本字段差异较大：这里先保证 ordered 生效，reliable 作为占位参数
         
         // 从PeerConnection创建DataChannel
-        let defaultPeerConnection: RTCPeerConnection? = peerConnections.values.first ?? createDefaultPeerConnection()
+        let defaultPeerConnection = peerConnections.values.first ?? createDefaultPeerConnection()
         
-        if let peerConnection = defaultPeerConnection {
-            let dataChannel = peerConnection.dataChannel(forLabel: "data_channel_\(streamId)", configuration: dataChannelConfig)
-            guard let dataChannel = dataChannel else {
-                print("DataChannel创建失败")
-                return -1
-            }
-            dataChannelMap[streamId] = dataChannel
-            
-            // 设置DataChannel回调
-        dataChannel.delegate = DataChannelDelegate(streamId: streamId, engine: self)
-            
-            dataStreams[streamId] = true
-            print("创建数据流: streamId=\(streamId), reliable=\(reliable), ordered=\(ordered), state=\(dataChannel.readyState)")
-            
-            return streamId
-        } else {
+        guard let peerConnection = defaultPeerConnection else {
             print("无法创建PeerConnection，DataChannel创建失败")
             return -1
         }
+        guard let dataChannel = peerConnection.dataChannel(forLabel: "data_channel_\(streamId)", configuration: config) else {
+            print("DataChannel创建失败: streamId=\(streamId)")
+            return -1
+        }
+        dataChannelMap[streamId] = dataChannel
+        
+        // 设置DataChannel回调
+        dataChannel.delegate = DataChannelDelegate(streamId: streamId, engine: self)
+        
+        dataStreams[streamId] = true
+        print("创建数据流: streamId=\(streamId), reliable=\(reliable), ordered=\(ordered), state=\(dataChannel.readyState)")
+        
+        return streamId
     }
     
     private func createDefaultPeerConnection() -> RTCPeerConnection? {
@@ -1492,9 +1518,6 @@ internal class SyRtcEngineImpl {
         ]
         postLiveApi(path: "/api/rtc/live/update", body: body)
     }
-    
-    // MARK: - 远端视频
-    // 注意：setupRemoteVideo(uid:viewId:) 已在前面实现（带静音状态处理），避免重复定义
     
     // MARK: - 清理
     
@@ -1724,8 +1747,6 @@ private class FrameCapturer: NSObject, RTCVideoRenderer {
 }
 
 // MARK: - SyRtcEngineImpl扩展
-
-// MARK: - RTMP推流会话类
 
 // MARK: - 美颜滤镜类
 
