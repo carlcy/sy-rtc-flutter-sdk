@@ -3,17 +3,17 @@
 // @formatter:on
 
 group = "com.sy.rtc.flutter"
-version = "2.1.1"
+version = "3.0.0"
 
 buildscript {
-    ext.kotlin_version = "1.8.22"
+    ext.kotlin_version = "2.0.21"
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:8.1.0")
+        classpath("com.android.tools.build:gradle:8.7.3")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
     }
 }
@@ -35,12 +35,12 @@ android {
     compileSdk = 35
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11
+        jvmTarget = JavaVersion.VERSION_17
     }
 
     sourceSets {
@@ -84,7 +84,7 @@ dependencies {
         // 这里使用 compileOnly 仅用于编译期；运行期由宿主 App 提供 SDK 依赖（JitPack 或本地 AAR）。
         compileOnly(files(localAar))
     } else {
-        compileOnly("com.github.carlcy:sy-rtc-android-sdk:v2.1.1")
+        api("com.github.carlcy:sy-rtc-android-sdk:v3.0.0")
     }
     
     testImplementation("org.jetbrains.kotlin:kotlin-test")

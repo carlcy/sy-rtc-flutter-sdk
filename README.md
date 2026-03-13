@@ -2,7 +2,7 @@
 
 [![pub package](https://img.shields.io/pub/v/sy_rtc_flutter_sdk.svg)](https://pub.dev/packages/sy_rtc_flutter_sdk)
 
-**当前版本**: 2.1.1
+**当前版本**: 3.0.0
 
 SY RTC Flutter SDK 是一个用于实时音视频通信的 Flutter 插件，提供简洁易用的 API 接口。
 
@@ -40,7 +40,7 @@ allprojects {
 ```gradle
 dependencies {
     // Android SDK（从 JitPack）
-    implementation 'com.github.carlcy:sy-rtc-android-sdk:v2.1.1'
+    implementation 'com.github.carlcy:sy-rtc-android-sdk:v3.0.0'
 }
 ```
 
@@ -54,7 +54,7 @@ dependencies {
 
 ```yaml
 dependencies:
-  sy_rtc_flutter_sdk: ^2.1.1
+  sy_rtc_flutter_sdk: ^3.0.0
 ```
 
 然后运行：
@@ -635,14 +635,14 @@ await engine.setClientRole('host');
 **重要**：发布前确保原生 SDK 已发布！
 
 1. **确保原生 SDK 已发布**
-   - ✅ Android SDK 已发布到 JitPack（GitHub: carlcy/sy-rtc-android-sdk, v2.1.1）
+   - ✅ Android SDK 已发布到 JitPack（GitHub: carlcy/sy-rtc-android-sdk, v3.0.0）
    - ✅ iOS：Flutter 插件内置并自动集成（iOS 13+）
 
 2. **检查 pubspec.yaml**
    ```yaml
    name: sy_rtc_flutter_sdk
    description: "SY RTC Flutter SDK - A Flutter plugin for real-time audio and video communication"
-   version: 2.1.1
+   version: 3.0.0
    homepage: https://github.com/carlcy/sy_rtc_flutter_sdk
    ```
 
