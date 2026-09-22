@@ -69,7 +69,7 @@ class SyRtcEngine {
 
   /// 设置后端 API 认证 Token（JWT）
   ///
-  /// 用于调用 /api/rtc/live/* 等需要登录认证的接口。
+  /// 用于调用需要登录认证的后端业务接口。
   /// 注意：join() 的 token 是 RTC Token，与该 JWT 不同。
   Future<void> setApiAuthToken(String token) async {
     await _channel.invokeMethod('setApiAuthToken', {'token': token});
@@ -83,7 +83,7 @@ class SyRtcEngine {
     try {
       // 通过MethodChannel让原生层处理HTTP请求
       // 原生层会调用后端API: GET {apiBaseUrl}/api/rtc/feature/{appId}
-      // 返回格式: {"features": ["voice", "live"]}
+      // 返回格式: {"features": ["rtc"]}
       await _invoke<void>('checkFeatures', {
         'appId': appId,
         'apiBaseUrl': apiBaseUrl,
@@ -101,14 +101,14 @@ class SyRtcEngine {
     return result as bool? ?? false;
   }
 
-  /// 检查是否开通了语聊功能
-  Future<bool> hasVoiceFeature() async {
-    return hasFeature('voice');
+  /// 检查是否开通了 RTC 产品（音视频一体）
+  Future<bool> hasRtcFeature() async {
+    return hasFeature('rtc');
   }
 
-  /// 检查是否开通了直播功能
-  Future<bool> hasLiveFeature() async {
-    return hasFeature('live');
+  /// 兼容旧名：等同于 [hasRtcFeature]
+  Future<bool> hasVoiceFeature() async {
+    return hasRtcFeature();
   }
 
   /// 加入频道
@@ -152,7 +152,7 @@ class SyRtcEngine {
 
   /// 设置客户端角色
   ///
-  /// [role] 角色：'host' 或 'audience'
+  /// [role] host|audience|publisher|subscriber（audience/subscriber 本地不推流）
   Future<void> setClientRole(String role) async {
     await _channel.invokeMethod('setClientRole', {'role': role});
   }
@@ -203,6 +203,20 @@ class SyRtcEngine {
     return _eventController.stream
         .where((event) => event is SyUserOfflineEvent)
         .cast<SyUserOfflineEvent>();
+  }
+
+  /// 被踢出房间事件流
+  Stream<SyKickedEvent> get onKicked {
+    return _eventController.stream
+        .where((event) => event is SyKickedEvent)
+        .cast<SyKickedEvent>();
+  }
+
+  /// 服务端静音事件流
+  Stream<SyServerMuteAudioEvent> get onServerMuteAudio {
+    return _eventController.stream
+        .where((event) => event is SyServerMuteAudioEvent)
+        .cast<SyServerMuteAudioEvent>();
   }
 
   /// 音量指示事件流
@@ -493,13 +507,13 @@ class SyRtcEngine {
 
   // ==================== 视频基础功能 ====================
 
-  /// 启用视频模块（需要live权限）
+  /// 启用视频模块（需要 rtc 产品权限）
   ///
   /// [quality] 视频画质预设（可选，默认标准画质）
   Future<void> enableVideo({SyVideoQualityPreset? quality}) async {
-    final hasLive = await hasLiveFeature();
-    if (!hasLive) {
-      throw Exception('当前AppId未开通直播功能，无法使用视频功能');
+    final hasRtc = await hasRtcFeature();
+    if (!hasRtc) {
+      throw Exception('当前 AppId 未开通 RTC 产品，无法使用视频功能');
     }
 
     // 如果指定了画质，先设置编码配置
@@ -514,9 +528,9 @@ class SyRtcEngine {
   ///
   /// [preset] 画质预设（流畅/标准/高清/超清/4K）
   Future<void> setVideoQuality(SyVideoQualityPreset preset) async {
-    final hasLive = await hasLiveFeature();
-    if (!hasLive) {
-      throw Exception('当前AppId未开通直播功能，无法使用视频功能');
+    final hasRtc = await hasRtcFeature();
+    if (!hasRtc) {
+      throw Exception('当前 AppId 未开通 RTC 产品，无法使用视频功能');
     }
 
     final configMap = preset.toEncoderConfigMap();
@@ -537,12 +551,12 @@ class SyRtcEngine {
     await _channel.invokeMethod('disableVideo');
   }
 
-  /// 启用/禁用本地视频采集（需要live权限）
+  /// 启用/禁用本地视频采集（需要 rtc 产品权限）
   Future<void> enableLocalVideo(bool enabled) async {
     if (enabled) {
-      final hasLive = await hasLiveFeature();
-      if (!hasLive) {
-        throw Exception('当前AppId未开通直播功能，无法使用视频功能');
+      final hasRtc = await hasRtcFeature();
+      if (!hasRtc) {
+        throw Exception('当前 AppId 未开通 RTC 产品，无法使用视频功能');
       }
     }
     await _channel.invokeMethod('enableLocalVideo', {'enabled': enabled});
@@ -565,11 +579,11 @@ class SyRtcEngine {
     });
   }
 
-  /// 开启视频预览（需要live权限）
+  /// 开启视频预览（需要 rtc 产品权限）
   Future<void> startPreview() async {
-    final hasLive = await hasLiveFeature();
-    if (!hasLive) {
-      throw Exception('当前AppId未开通直播功能，无法使用视频预览');
+    final hasRtc = await hasRtcFeature();
+    if (!hasRtc) {
+      throw Exception('当前 AppId 未开通 RTC 产品，无法使用视频预览');
     }
     await _channel.invokeMethod('startPreview');
   }
@@ -599,20 +613,20 @@ class SyRtcEngine {
 
   // ==================== 视频渲染 ====================
 
-  /// 设置本地视频视图（需要live权限）
+  /// 设置本地视频视图（需要 rtc 产品权限）
   Future<void> setupLocalVideo(int viewId) async {
-    final hasLive = await hasLiveFeature();
-    if (!hasLive) {
-      throw Exception('当前AppId未开通直播功能，无法使用视频渲染');
+    final hasRtc = await hasRtcFeature();
+    if (!hasRtc) {
+      throw Exception('当前 AppId 未开通 RTC 产品，无法使用视频渲染');
     }
     await _channel.invokeMethod('setupLocalVideo', {'viewId': viewId});
   }
 
-  /// 设置远端视频视图（需要live权限）
+  /// 设置远端视频视图（需要 rtc 产品权限）
   Future<void> setupRemoteVideo(String uid, int viewId) async {
-    final hasLive = await hasLiveFeature();
-    if (!hasLive) {
-      throw Exception('当前AppId未开通直播功能，无法使用视频渲染');
+    final hasRtc = await hasRtcFeature();
+    if (!hasRtc) {
+      throw Exception('当前 AppId 未开通 RTC 产品，无法使用视频渲染');
     }
     await _channel.invokeMethod('setupRemoteVideo', {
       'uid': uid,
@@ -622,11 +636,11 @@ class SyRtcEngine {
 
   // ==================== 屏幕共享 ====================
 
-  /// 开始屏幕共享（需要live权限）
+  /// 开始屏幕共享（需要 rtc 产品权限）
   Future<void> startScreenCapture(SyScreenCaptureConfiguration config) async {
-    final hasLive = await hasLiveFeature();
-    if (!hasLive) {
-      throw Exception('当前AppId未开通直播功能，无法使用屏幕共享');
+    final hasRtc = await hasRtcFeature();
+    if (!hasRtc) {
+      throw Exception('当前 AppId 未开通 RTC 产品，无法使用屏幕共享');
     }
     await _channel.invokeMethod('startScreenCapture', {
       'captureMouseCursor': config.captureMouseCursor,
@@ -658,12 +672,12 @@ class SyRtcEngine {
 
   // ==================== 视频增强 ====================
 
-  /// 设置美颜选项（需要live权限）
+  /// 设置美颜选项（需要 rtc 产品权限）
   Future<void> setBeautyEffectOptions(SyBeautyOptions options) async {
     if (options.enabled) {
-      final hasLive = await hasLiveFeature();
-      if (!hasLive) {
-        throw Exception('当前AppId未开通直播功能，无法使用美颜功能');
+      final hasRtc = await hasRtcFeature();
+      if (!hasRtc) {
+        throw Exception('当前 AppId 未开通 RTC 产品，无法使用美颜功能');
       }
     }
     await _channel.invokeMethod('setBeautyEffectOptions', {
@@ -674,11 +688,11 @@ class SyRtcEngine {
     });
   }
 
-  /// 视频截图（需要live权限）
+  /// 视频截图（需要 rtc 产品权限）
   Future<void> takeSnapshot(String uid, String filePath) async {
-    final hasLive = await hasLiveFeature();
-    if (!hasLive) {
-      throw Exception('当前AppId未开通直播功能，无法使用视频截图');
+    final hasRtc = await hasRtcFeature();
+    if (!hasRtc) {
+      throw Exception('当前 AppId 未开通 RTC 产品，无法使用视频截图');
     }
     await _channel.invokeMethod('takeSnapshot', {
       'uid': uid,
@@ -811,69 +825,6 @@ class SyRtcEngine {
     });
   }
 
-  // ==================== 旁路推流 ====================
-
-  /// 开始旁路推流
-  ///
-  /// [url] 推流地址。如果为空字符串，后端会自动生成我们服务器的RTMP地址
-  /// 格式：rtmp://server-ip:1935/live/{appId}_{channelId}
-  ///
-  /// 也可以传入第三方CDN的推流地址（如抖音、快手等）
-  Future<void> startRtmpStreamWithTranscoding(
-      String url, SyLiveTranscoding transcoding) async {
-    await _channel.invokeMethod('startRtmpStreamWithTranscoding', {
-      'url': url, // 如果为空，后端会自动生成我们服务器的RTMP地址
-      'width': transcoding.width,
-      'height': transcoding.height,
-      'videoBitrate': transcoding.videoBitrate,
-      'videoFramerate': transcoding.videoFramerate,
-      'lowLatency': transcoding.lowLatency,
-      'videoGop': transcoding.videoGop,
-      'backgroundColor': transcoding.backgroundColor,
-      'watermarkUrl': transcoding.watermarkUrl,
-      'transcodingUsers': transcoding.transcodingUsers
-          ?.map((u) => {
-                'uid': u.uid,
-                'x': u.x,
-                'y': u.y,
-                'width': u.width,
-                'height': u.height,
-                'zOrder': u.zOrder,
-                'alpha': u.alpha,
-              })
-          .toList(),
-    });
-  }
-
-  /// 停止旁路推流
-  Future<void> stopRtmpStream(String url) async {
-    await _channel.invokeMethod('stopRtmpStream', {'url': url});
-  }
-
-  /// 更新旁路推流转码配置
-  Future<void> updateRtmpTranscoding(SyLiveTranscoding transcoding) async {
-    await _channel.invokeMethod('updateRtmpTranscoding', {
-      'width': transcoding.width,
-      'height': transcoding.height,
-      'videoBitrate': transcoding.videoBitrate,
-      'videoFramerate': transcoding.videoFramerate,
-      'lowLatency': transcoding.lowLatency,
-      'videoGop': transcoding.videoGop,
-      'backgroundColor': transcoding.backgroundColor,
-      'watermarkUrl': transcoding.watermarkUrl,
-      'transcodingUsers': transcoding.transcodingUsers
-          ?.map((u) => {
-                'uid': u.uid,
-                'x': u.x,
-                'y': u.y,
-                'width': u.width,
-                'height': u.height,
-                'zOrder': u.zOrder,
-                'alpha': u.alpha,
-              })
-          .toList(),
-    });
-  }
 
   Future<dynamic> _handleMethodCall(MethodCall call) async {
     try {
@@ -934,6 +885,20 @@ class SyRtcEngine {
           final event = SyUserMuteAudioEvent(uid: uid, muted: muted);
           _eventController.add(event);
           _eventHandler?.onUserMuteAudio?.call(uid, muted);
+          break;
+        case 'onKicked':
+          final channelId = call.arguments['channelId'] as String? ?? '';
+          final reason = call.arguments['reason'] as String? ?? '';
+          final event = SyKickedEvent(channelId: channelId, reason: reason);
+          _eventController.add(event);
+          _eventHandler?.onKicked?.call(channelId, reason);
+          break;
+        case 'onServerMuteAudio':
+          final uid = call.arguments['uid'] as String? ?? '';
+          final muted = call.arguments['muted'] as bool? ?? false;
+          final event = SyServerMuteAudioEvent(uid: uid, muted: muted);
+          _eventController.add(event);
+          _eventHandler?.onServerMuteAudio?.call(uid, muted);
           break;
         case 'onVolumeIndication':
           final event = SyVolumeIndicationEvent(

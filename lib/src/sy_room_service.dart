@@ -226,26 +226,32 @@ class SyRoomService {
     return result['count'] as int? ?? result['data'] as int? ?? 0;
   }
 
-  /// 获取 RTC Token
+  /// 获取 RTC Token（别名 [getToken]）。
   ///
-  /// [channelId] 要加入的房间 ID
-  /// [uid] 用户 ID
-  /// [expireHours] 过期时间（小时），默认 24
-  ///
-  /// 返回用于 [SyRtcEngine.join] 的 RTC Token。
+  /// 返回用于 [SyRtcEngine.join] 的 RTC Token；信令 WS 须带 `?token=`。
+  /// [role] host|audience|publisher|subscriber
   Future<String> fetchToken({
     required String channelId,
     required String uid,
     int expireHours = 24,
+    String? role,
+    String? qualityTier,
+    bool meta = false,
   }) async {
+    final queryParams = <String, String>{
+      'channelId': channelId,
+      'uid': uid,
+      'expireHours': expireHours.toString(),
+    };
+    if (role != null && role.isNotEmpty) queryParams['role'] = role;
+    if (qualityTier != null && qualityTier.isNotEmpty) {
+      queryParams['qualityTier'] = qualityTier;
+    }
+    if (meta) queryParams['meta'] = 'true';
     final result = await _httpRequest(
       'POST',
       '/api/rtc/token',
-      queryParams: {
-        'channelId': channelId,
-        'uid': uid,
-        'expireHours': expireHours.toString(),
-      },
+      queryParams: queryParams,
     );
     final code = result['code'] as int? ?? -1;
     if (code != 0) {
@@ -253,7 +259,60 @@ class SyRoomService {
     }
     final data = result['data'];
     if (data is String) return data;
+    if (data is Map && data['token'] != null) return data['token'].toString();
     if (data != null) return data.toString();
     throw Exception('Token 响应格式错误');
+  }
+
+  /// [fetchToken] 别名。
+  Future<String> getToken({
+    required String channelId,
+    required String uid,
+    int expireHours = 24,
+    String? role,
+    String? qualityTier,
+    bool meta = false,
+  }) =>
+      fetchToken(
+        channelId: channelId,
+        uid: uid,
+        expireHours: expireHours,
+        role: role,
+        qualityTier: qualityTier,
+        meta: meta,
+      );
+
+  /// 轮询成员踢人/静音：GET /api/room/{channelId}/members/{uid}/state
+  Future<Map<String, dynamic>> getMemberState({
+    required String channelId,
+    required String uid,
+  }) async {
+    final result =
+        await _httpRequest('GET', '/api/room/$channelId/members/$uid/state');
+    final code = result['code'] as int? ?? -1;
+    if (code != 0) {
+      throw Exception(result['msg'] ?? '获取成员状态失败');
+    }
+    final data = result['data'];
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return <String, dynamic>{};
+  }
+
+  /// 房间内全部成员 moderation 标志。
+  Future<List<Map<String, dynamic>>> listMemberStates(String channelId) async {
+    final result =
+        await _httpRequest('GET', '/api/room/$channelId/members/state');
+    final code = result['code'] as int? ?? -1;
+    if (code != 0) {
+      throw Exception(result['msg'] ?? '获取成员状态列表失败');
+    }
+    final data = result['data'];
+    if (data is Map && data['list'] is List) {
+      return (data['list'] as List)
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+    return const [];
   }
 }

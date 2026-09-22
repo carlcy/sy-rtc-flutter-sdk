@@ -17,18 +17,17 @@ import com.sy.rtc.sdk.AudioMixingConfiguration
 import com.sy.rtc.sdk.AudioEffectConfiguration
 import com.sy.rtc.sdk.AudioRecordingConfiguration
 import com.sy.rtc.sdk.BeautyOptions
-import com.sy.rtc.sdk.LiveTranscoding
 import com.sy.rtc.sdk.ScreenCaptureConfiguration
-import com.sy.rtc.sdk.TranscodingUser
 
 /** SyRtcFlutterSdkPlugin */
 class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
   private lateinit var channel : MethodChannel
   private var engine: RtcEngine? = null
   private var eventChannel: MethodChannel? = null
-  private var appFeatures: Set<String> = mutableSetOf("voice")
+  private var appFeatures: Set<String> = mutableSetOf("rtc")
   private var apiBaseUrl: String? = null
   private var flutterContext: android.content.Context? = null
+  private var pluginBinding: FlutterPlugin.FlutterPluginBinding? = null
   private val mainHandler = Handler(Looper.getMainLooper())
 
   private fun invokeOnMain(method: String, arguments: Any?) {
@@ -47,6 +46,11 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
     
     eventChannel = MethodChannel(flutterPluginBinding.binaryMessenger, "sy_rtc_flutter_sdk/events")
     flutterContext = flutterPluginBinding.applicationContext
+    pluginBinding = flutterPluginBinding
+    flutterPluginBinding.platformViewRegistry.registerViewFactory(
+      SyRtcVideoPlatformView.VIEW_TYPE,
+      SyRtcVideoPlatformViewFactory()
+    )
   }
 
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
@@ -81,7 +85,7 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
           if (apiUrl != null && apiUrl.isNotEmpty()) {
             checkFeatures(appId, apiUrl)
           } else {
-            appFeatures = mutableSetOf("voice")
+            appFeatures = mutableSetOf("rtc")
           }
           result.success(true)
         } catch (t: Throwable) {
@@ -157,8 +161,8 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
           val frameRate = args["frameRate"] as? Int ?: 15
           val bitrate = args["bitrate"] as? Int ?: 400
           // 需要先检查是否有live权限
-          if (!appFeatures.contains("live")) {
-            result.error("FEATURE_NOT_ENABLED", "当前AppId未开通直播功能", null)
+          if (!appFeatures.contains("rtc")) {
+            result.error("FEATURE_NOT_ENABLED", "当前 AppId 未开通 RTC 产品", null)
           } else {
             engine?.setVideoEncoderConfiguration(width, height, frameRate, bitrate)
             result.success(true)
@@ -175,8 +179,8 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
         result.success(true)
       }
       "enableVideo" -> {
-        if (!appFeatures.contains("live")) {
-          result.error("FEATURE_NOT_ENABLED", "当前AppId未开通直播功能", null)
+        if (!appFeatures.contains("rtc")) {
+          result.error("FEATURE_NOT_ENABLED", "当前 AppId 未开通 RTC 产品", null)
         } else {
           engine?.enableVideo()
           result.success(true)
@@ -319,15 +323,25 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
         result.success(true)
       }
       "setupLocalVideo" -> {
-        // Android 侧 SDK setupLocalVideo 接受 Any，这里仅透传 viewId（上层若需要可扩展为 SurfaceView/TextureView）
         val viewId = call.argument<Int>("viewId") ?: 0
-        engine?.setupLocalVideo(viewId)
+        val container = SyRtcVideoPlatformView.Registry.container(viewId)
+        if (container != null) {
+          engine?.setupLocalVideo(container)
+        } else {
+          // Fallback: treat as Android resource id (native Activity layout)
+          engine?.setupLocalVideo(viewId)
+        }
         result.success(true)
       }
       "setupRemoteVideo" -> {
         val uid = call.argument<String>("uid") ?: ""
         val viewId = call.argument<Int>("viewId") ?: 0
-        engine?.setupRemoteVideo(uid, viewId)
+        val container = SyRtcVideoPlatformView.Registry.container(viewId)
+        if (container != null) {
+          engine?.setupRemoteVideo(uid, container)
+        } else {
+          engine?.setupRemoteVideo(uid, viewId)
+        }
         result.success(true)
       }
       "startScreenCapture" -> {
@@ -469,68 +483,6 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
         engine?.sendStreamMessage(streamId, data)
         result.success(true)
       }
-      "startRtmpStreamWithTranscoding" -> {
-        val args = call.arguments as? Map<*, *>
-        val url = args?.get("url") as? String ?: ""
-        val users = (args?.get("transcodingUsers") as? List<*>)?.mapNotNull { u ->
-          val m = u as? Map<*, *> ?: return@mapNotNull null
-          TranscodingUser(
-            uid = m["uid"] as? String ?: return@mapNotNull null,
-            x = (m["x"] as? Number)?.toDouble() ?: 0.0,
-            y = (m["y"] as? Number)?.toDouble() ?: 0.0,
-            width = (m["width"] as? Number)?.toDouble() ?: 0.0,
-            height = (m["height"] as? Number)?.toDouble() ?: 0.0,
-            zOrder = m["zOrder"] as? Int ?: 0,
-            alpha = (m["alpha"] as? Number)?.toDouble() ?: 1.0
-          )
-        }
-        val transcoding = LiveTranscoding(
-          width = args?.get("width") as? Int ?: 360,
-          height = args?.get("height") as? Int ?: 640,
-          videoBitrate = args?.get("videoBitrate") as? Int ?: 400,
-          videoFramerate = args?.get("videoFramerate") as? Int ?: 15,
-          lowLatency = args?.get("lowLatency") as? Boolean ?: false,
-          videoGop = args?.get("videoGop") as? Int ?: 30,
-          backgroundColor = args?.get("backgroundColor") as? Int ?: 0x000000,
-          watermarkUrl = args?.get("watermarkUrl") as? String,
-          transcodingUsers = users
-        )
-        engine?.startRtmpStreamWithTranscoding(url, transcoding)
-        result.success(true)
-      }
-      "stopRtmpStream" -> {
-        val url = call.argument<String>("url") ?: ""
-        engine?.stopRtmpStream(url)
-        result.success(true)
-      }
-      "updateRtmpTranscoding" -> {
-        val args = call.arguments as? Map<*, *>
-        val users = (args?.get("transcodingUsers") as? List<*>)?.mapNotNull { u ->
-          val m = u as? Map<*, *> ?: return@mapNotNull null
-          TranscodingUser(
-            uid = m["uid"] as? String ?: return@mapNotNull null,
-            x = (m["x"] as? Number)?.toDouble() ?: 0.0,
-            y = (m["y"] as? Number)?.toDouble() ?: 0.0,
-            width = (m["width"] as? Number)?.toDouble() ?: 0.0,
-            height = (m["height"] as? Number)?.toDouble() ?: 0.0,
-            zOrder = m["zOrder"] as? Int ?: 0,
-            alpha = (m["alpha"] as? Number)?.toDouble() ?: 1.0
-          )
-        }
-        val transcoding = LiveTranscoding(
-          width = args?.get("width") as? Int ?: 360,
-          height = args?.get("height") as? Int ?: 640,
-          videoBitrate = args?.get("videoBitrate") as? Int ?: 400,
-          videoFramerate = args?.get("videoFramerate") as? Int ?: 15,
-          lowLatency = args?.get("lowLatency") as? Boolean ?: false,
-          videoGop = args?.get("videoGop") as? Int ?: 30,
-          backgroundColor = args?.get("backgroundColor") as? Int ?: 0x000000,
-          watermarkUrl = args?.get("watermarkUrl") as? String,
-          transcodingUsers = users
-        )
-        engine?.updateRtmpTranscoding(transcoding)
-        result.success(true)
-      }
       "takeSnapshot" -> {
         val args = call.arguments as? Map<*, *>
         val uid = args?.get("uid") as? String ?: ""
@@ -605,6 +557,14 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
         invokeOnMain("onUserOffline", mapOf("uid" to uid, "reason" to reason))
       }
 
+      override fun onKicked(channelId: String, reason: String) {
+        invokeOnMain("onKicked", mapOf("channelId" to channelId, "reason" to reason))
+      }
+
+      override fun onServerMuteAudio(uid: String, muted: Boolean) {
+        invokeOnMain("onServerMuteAudio", mapOf("uid" to uid, "muted" to muted))
+      }
+
       override fun onVolumeIndication(speakers: List<VolumeInfo>) {
         val speakersList = speakers.map { mapOf("uid" to it.uid, "volume" to it.volume) }
         invokeOnMain("onVolumeIndication", mapOf("speakers" to speakersList))
@@ -668,8 +628,8 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
         }
         connection.disconnect()
       } catch (e: Exception) {
-        // 查询失败，使用默认值（只有语聊功能）
-        appFeatures = mutableSetOf("voice")
+        // 查询失败，使用默认值（默认 RTC 产品）
+        appFeatures = mutableSetOf("rtc")
         android.util.Log.e("SyRtcFlutterSdk", "功能权限查询失败: ${e.message}")
       }
     }.start()

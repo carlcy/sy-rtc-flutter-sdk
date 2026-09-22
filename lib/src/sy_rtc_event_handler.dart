@@ -98,6 +98,12 @@ class SyRtcEventHandler {
   /// 频道消息回调（底层信令通道，用于应用层自定义消息）
   final void Function(String uid, String message)? onChannelMessage;
 
+  /// 被服务端踢出房间（信令 type=kicked，或 poll；非 SFU 强制断流）
+  final void Function(String channelId, String reason)? onKicked;
+
+  /// 服务端静音/解静音本端或远端（mute-audio 信令 / poll）
+  final void Function(String uid, bool muted)? onServerMuteAudio;
+
   /// 错误回调
   final void Function(int code, String message)? onError;
 
@@ -127,6 +133,8 @@ class SyRtcEventHandler {
     this.onStreamMessage,
     this.onStreamMessageError,
     this.onChannelMessage,
+    this.onKicked,
+    this.onServerMuteAudio,
     this.onError,
   });
 }

@@ -2,7 +2,7 @@
 
 [![pub package](https://img.shields.io/pub/v/sy_rtc_flutter_sdk.svg)](https://pub.dev/packages/sy_rtc_flutter_sdk)
 
-**当前版本**: 3.0.0
+**当前版本**: 3.1.0
 
 SY RTC Flutter SDK 是一个用于实时音视频通信的 Flutter 插件，提供简洁易用的 API 接口。
 
@@ -40,7 +40,7 @@ allprojects {
 ```gradle
 dependencies {
     // Android SDK（从 JitPack）
-    implementation 'com.github.carlcy:sy-rtc-android-sdk:v3.0.0'
+    implementation 'com.github.carlcy:sy-rtc-android-sdk:v3.1.0'
 }
 ```
 
@@ -54,7 +54,7 @@ dependencies {
 
 ```yaml
 dependencies:
-  sy_rtc_flutter_sdk: ^3.0.0
+  sy_rtc_flutter_sdk: ^3.1.0
 ```
 
 然后运行：
@@ -102,8 +102,8 @@ await engine.init(
 
 **功能权限说明**：
 - 如果提供了 `apiBaseUrl`，SDK 会自动查询 AppId 的功能权限
-- 只有开通了 `live` 功能的 AppId 才能使用视频相关功能
-- 所有 AppId 默认都有 `voice`（语聊）功能
+- 开通了 `rtc` 产品的 AppId 可使用音视频（含实时视频）
+- 默认按 `rtc` 产品位校验；IM 为独立 SDK
 
 ### 4. 设置事件监听
 
@@ -140,10 +140,10 @@ await engine.join(
 );
 ```
 
-### 5.1 设置后端 API 认证 Token（用于直播等接口）
+### 5.1 设置后端 API 认证 Token
 
 ```dart
-// 用于调用 /api/rtc/live/* 等需要登录认证的接口
+// 用于调用需要登录认证的后端业务接口（与 join 的 RTC Token 不同）
 await engine.setApiAuthToken(jwt);
 ```
 
@@ -155,19 +155,13 @@ await engine.setApiAuthToken(jwt);
 ### 6. 检查功能权限
 
 ```dart
-// 检查是否开通了语聊功能
-if (await engine.hasVoiceFeature()) {
-  // 可以使用音频功能
+// 检查是否开通了 RTC 产品（音视频一体）
+if (await engine.hasRtcFeature()) {
   await engine.enableLocalAudio(true);
-}
-
-// 检查是否开通了直播功能
-if (await engine.hasLiveFeature()) {
-  // 可以使用视频功能
   await engine.enableVideo();
   await engine.startPreview();
 } else {
-  print('当前AppId未开通直播功能，只能使用音频功能');
+  print('当前 AppId 未开通 RTC 产品');
 }
 ```
 

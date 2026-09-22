@@ -68,7 +68,7 @@ internal class SyRtcEngineImpl {
     private var currentUid: String?
     // join() 传入的是 RTC Token（用于加入频道）
     private var currentToken: String?
-    // 后端 API 认证用的 JWT（用于 /api/rtc/live/* 等）
+    // 后端 API 认证用的 JWT
     private var apiAuthToken: String?
     
     // 多人语聊（Mesh）：每个远端用户一条 PeerConnection（key=remoteUid）
@@ -80,9 +80,6 @@ internal class SyRtcEngineImpl {
     private func guessRemoteUid() -> String {
         return peerConnections.keys.first(where: { $0 != "default" }) ?? ""
     }
-    
-    // 旁路推流：采用服务端 egress（/api/rtc/live/*），不在客户端实现 RTMP 连接/编码
-    private var rtmpStreams: [String: LiveTranscoding] = [:]
     
     // 屏幕共享
     private var screenRecorder: RPScreenRecorder?
@@ -125,68 +122,6 @@ internal class SyRtcEngineImpl {
         apiAuthToken = token
     }
 
-    private func postLiveApi(path: String, body: [String: Any]) {
-        guard let base = apiBaseUrl, !base.isEmpty else {
-            eventHandler?.onError(code: 1001, message: "API_BASE_URL 未设置：请先调用 setApiBaseUrl()")
-            return
-        }
-        let token = (apiAuthToken?.isEmpty == false) ? apiAuthToken : currentToken
-        guard let token = token, !token.isEmpty else {
-            eventHandler?.onError(code: 1001, message: "缺少登录 token：请先调用 setApiAuthToken() 或在 join() 后设置")
-            return
-        }
-        guard let url = URL(string: base + path) else {
-            eventHandler?.onError(code: 1001, message: "API URL 无效")
-            return
-        }
-        DispatchQueue.global(qos: .utility).async { [weak self] in
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.timeoutInterval = 8.0
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            request.setValue(self?.appId ?? "", forHTTPHeaderField: "X-App-Id")
-            // 后端 live 接口需要 uid，否则返回 401
-            if let uid = self?.currentUid, !uid.isEmpty {
-                request.setValue(uid, forHTTPHeaderField: "X-Uid")
-            }
-            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-
-            let sema = DispatchSemaphore(value: 0)
-            var statusCode: Int = -1
-            var respText: String = ""
-            URLSession.shared.dataTask(with: request) { data, resp, err in
-                if let http = resp as? HTTPURLResponse { statusCode = http.statusCode }
-                if let data = data { respText = String(data: data, encoding: .utf8) ?? "" }
-                if let err = err {
-                    self?.eventHandler?.onError(code: 1001, message: "直播接口异常: \(err.localizedDescription)")
-                } else if !(200...299).contains(statusCode) {
-                    self?.eventHandler?.onError(code: 1001, message: "直播接口失败: \(statusCode) \(respText)")
-                }
-                sema.signal()
-            }.resume()
-            _ = sema.wait(timeout: .now() + 10)
-        }
-    }
-
-    private func guessLayout(from transcoding: LiveTranscoding) -> [String: Any] {
-        let users = transcoding.transcodingUsers ?? []
-        guard !users.isEmpty else {
-            return ["mode": "host-main", "hostUid": currentUid ?? "", "side": "right"]
-        }
-        let sorted = users.sorted { ($0.width * $0.height) > ($1.width * $1.height) }
-        let top1 = sorted.first
-        let top2 = sorted.dropFirst().first
-        if let a = top1, let b = top2 {
-            let area1 = a.width * a.height
-            let area2 = b.width * b.height
-            let ratio: Double = area2 <= 0 ? 999.0 : (area1 / area2)
-            if ratio < 1.2 {
-                return ["mode": "pk", "pkUids": [a.uid, b.uid]]
-            }
-        }
-        return ["mode": "host-main", "hostUid": top1?.uid ?? (currentUid ?? ""), "side": "right"]
-    }
 
     // MARK: - 频道（多人语聊 Mesh）
     func join(channelId: String, uid: String, token: String) {
@@ -209,7 +144,7 @@ internal class SyRtcEngineImpl {
         eventHandler?.onConnectionStateChanged(state: "connecting", reason: "joining")
 
         // 连接信令
-        signalingClient = SyRtcSignalingClient(signalingUrl: signalingUrl, channelId: channelId, uid: uid) { [weak self] type, data in
+        signalingClient = SyRtcSignalingClient(signalingUrl: signalingUrl, channelId: channelId, uid: uid, token: token) { [weak self] type, data in
             self?.handleSignalingMessage(type: type, data: data, channelId: channelId)
         }
         signalingClient?.connect()
@@ -262,6 +197,25 @@ internal class SyRtcEngineImpl {
 
     private func handleSignalingMessage(type: String, data: [String: Any], channelId: String) {
         switch type {
+        case "kicked":
+            let reason = (data["reason"] as? String) ?? "kicked"
+            eventHandler?.onKicked(channelId: channelId, reason: reason)
+            leave()
+        case "user-kicked":
+            if let kickedUid = data["uid"] as? String {
+                if kickedUid == currentUid {
+                    leave()
+                } else {
+                    eventHandler?.onUserOffline(uid: kickedUid, reason: "kicked")
+                }
+            }
+        case "mute-audio", "unmute-audio":
+            let target = (data["uid"] as? String) ?? ""
+            let muted = type == "mute-audio" || (data["mutedAudio"] as? Bool) == true
+            eventHandler?.onServerMuteAudio(uid: target, muted: muted)
+            if target == currentUid {
+                localAudioTrack?.isEnabled = !muted
+            }
         case "user-list":
             guard let localUid = currentUid, let chId = currentChannelId else { return }
             // 服务端 data.users 可能是 [String] 或 JSON 反序列化后的 [Any]，需兼容
@@ -495,13 +449,9 @@ internal class SyRtcEngineImpl {
     // MARK: - 音频控制
 
     func setClientRole(_ role: SyRtcClientRole) {
-        switch role {
-        case .host:
-            localAudioTrack?.isEnabled = true
-        case .audience:
-            localAudioTrack?.isEnabled = false
-        }
-        print("设置客户端角色: \(role)")
+        let publish = role.canPublish
+        localAudioTrack?.isEnabled = publish
+        localVideoTrack?.isEnabled = publish
     }
 
     private var channelProfile: String = "communication"
@@ -1474,50 +1424,6 @@ internal class SyRtcEngineImpl {
         }
     }
     
-    // MARK: - 旁路推流
-    
-    func startRtmpStreamWithTranscoding(url: String, transcoding: LiveTranscoding) {
-        guard let channelId = currentChannelId, !channelId.isEmpty else {
-            eventHandler?.onError(code: 1001, message: "未加入频道，无法开播")
-            return
-        }
-        let pubs = (transcoding.transcodingUsers ?? []).map { $0.uid }
-        let publishers = pubs.isEmpty ? [currentUid ?? ""] : Array(Set(pubs)).filter { !$0.isEmpty }
-        
-        // 如果url为空，使用空数组，后端会自动生成我们服务器的RTMP地址
-        let rtmpUrls: [String] = url.isEmpty ? [] : [url]
-        
-        let body: [String: Any] = [
-            "channelId": channelId,
-            "publishers": publishers,
-            "rtmpUrls": rtmpUrls,
-            "video": ["outW": transcoding.width, "outH": transcoding.height, "fps": transcoding.videoFramerate, "bitrateKbps": transcoding.videoBitrate],
-            "audio": ["sampleRate": 48000, "channels": 2, "bitrateKbps": 128],
-            "layout": guessLayout(from: transcoding)
-        ]
-        postLiveApi(path: "/api/rtc/live/start", body: body)
-        
-        // 如果url为空，使用生成的地址（从响应中获取，或使用默认格式）
-        let finalUrl = url.isEmpty ? "auto_generated_\(channelId)" : url
-        rtmpStreams[finalUrl] = transcoding
-    }
-    
-    func stopRtmpStream(url: String) {
-        guard !url.isEmpty else { return }
-        guard let channelId = currentChannelId, !channelId.isEmpty else { return }
-        postLiveApi(path: "/api/rtc/live/stop", body: ["channelId": channelId])
-        rtmpStreams.removeValue(forKey: url)
-    }
-    
-    func updateRtmpTranscoding(transcoding: LiveTranscoding) {
-        guard let channelId = currentChannelId, !channelId.isEmpty else { return }
-        let body: [String: Any] = [
-            "channelId": channelId,
-            "video": ["outW": transcoding.width, "outH": transcoding.height, "fps": transcoding.videoFramerate, "bitrateKbps": transcoding.videoBitrate],
-            "layout": guessLayout(from: transcoding)
-        ]
-        postLiveApi(path: "/api/rtc/live/update", body: body)
-    }
     
     // MARK: - 清理
     
@@ -1529,8 +1435,6 @@ internal class SyRtcEngineImpl {
         localAudioTrack = nil
         videoCapturer = nil
         peerConnectionFactory = nil
-        
-        // 旁路推流改为服务端 egress：本地无需释放 RTMP 连接/编码资源
         
         // 释放屏幕共享资源
         screenRecorder?.stopCapture { _ in }
@@ -1678,54 +1582,6 @@ public struct AudioRecordingConfiguration {
     }
 }
 
-public struct LiveTranscoding {
-    public let width: Int
-    public let height: Int
-    public let videoBitrate: Int
-    public let videoFramerate: Int
-    public let lowLatency: Bool
-    public let videoGop: Int
-    public let backgroundColor: Int
-    public let watermarkUrl: String?
-    public let transcodingUsers: [TranscodingUser]?
-    
-    public init(width: Int = 360, height: Int = 640, videoBitrate: Int = 400,
-                videoFramerate: Int = 15, lowLatency: Bool = false, videoGop: Int = 30,
-                backgroundColor: Int = 0x000000, watermarkUrl: String? = nil,
-                transcodingUsers: [TranscodingUser]? = nil) {
-        self.width = width
-        self.height = height
-        self.videoBitrate = videoBitrate
-        self.videoFramerate = videoFramerate
-        self.lowLatency = lowLatency
-        self.videoGop = videoGop
-        self.backgroundColor = backgroundColor
-        self.watermarkUrl = watermarkUrl
-        self.transcodingUsers = transcodingUsers
-    }
-}
-
-public struct TranscodingUser {
-    public let uid: String
-    public let x: Double
-    public let y: Double
-    public let width: Double
-    public let height: Double
-    public let zOrder: Int
-    public let alpha: Double
-    
-    public init(uid: String, x: Double = 0.0, y: Double = 0.0,
-                width: Double = 0.0, height: Double = 0.0,
-                zOrder: Int = 0, alpha: Double = 1.0) {
-        self.uid = uid
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.zOrder = zOrder
-        self.alpha = alpha
-    }
-}
 
 // MARK: - WebRTC辅助类
 

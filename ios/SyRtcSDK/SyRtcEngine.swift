@@ -352,19 +352,6 @@ public class SyRtcEngine {
         impl?.sendStreamMessage(streamId: streamId, data: data)
     }
 
-    // MARK: - 旁路推流
-
-    public func startRtmpStreamWithTranscoding(url: String, transcoding: LiveTranscoding) {
-        impl?.startRtmpStreamWithTranscoding(url: url, transcoding: transcoding)
-    }
-
-    public func stopRtmpStream(url: String) {
-        impl?.stopRtmpStream(url: url)
-    }
-
-    public func updateRtmpTranscoding(transcoding: LiveTranscoding) {
-        impl?.updateRtmpTranscoding(transcoding: transcoding)
-    }
 
     // MARK: - 释放
 

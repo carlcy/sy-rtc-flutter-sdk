@@ -4,7 +4,7 @@ import UIKit
 public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
   private var engine: SyRtcEngine?
   private var eventChannel: FlutterMethodChannel?
-  private var appFeatures: Set<String> = ["voice"] // 默认只有语聊功能
+  private var appFeatures: Set<String> = ["rtc"] // 默认 RTC 产品
   private var apiBaseUrl: String?
   
   public static func register(with registrar: FlutterPluginRegistrar) {
@@ -13,6 +13,8 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
     registrar.addMethodCallDelegate(instance, channel: channel)
     
     instance.eventChannel = FlutterMethodChannel(name: "sy_rtc_flutter_sdk/events", binaryMessenger: registrar.messenger())
+    let factory = SyRtcVideoPlatformViewFactory(messenger: registrar.messenger())
+    registrar.register(factory, withId: SyRtcVideoPlatformView.viewType)
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -33,8 +35,8 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
         if let apiUrl = apiBaseUrl, !apiUrl.isEmpty {
           checkFeatures(appId: appId, apiBaseUrl: apiUrl)
         } else {
-          // 默认只有语聊功能
-          appFeatures = ["voice"]
+          // 默认 RTC 产品
+          appFeatures = ["rtc"]
         }
         result(true)
       } else {
@@ -127,8 +129,8 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
         let height = args["height"] as? Int ?? 480
         let frameRate = args["frameRate"] as? Int ?? 15
         let bitrate = args["bitrate"] as? Int ?? 400
-        if !appFeatures.contains("live") {
-          result(FlutterError(code: "FEATURE_NOT_ENABLED", message: "当前AppId未开通直播功能", details: nil))
+        if !appFeatures.contains("rtc") {
+          result(FlutterError(code: "FEATURE_NOT_ENABLED", message: "当前 AppId 未开通 RTC 产品", details: nil))
         } else {
           engine?.setVideoEncoderConfiguration(width: width, height: height, frameRate: frameRate, bitrate: bitrate)
           result(true)
@@ -147,8 +149,8 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
       }
       
     case "enableVideo":
-      if !appFeatures.contains("live") {
-        result(FlutterError(code: "FEATURE_NOT_ENABLED", message: "当前AppId未开通直播功能", details: nil))
+      if !appFeatures.contains("rtc") {
+        result(FlutterError(code: "FEATURE_NOT_ENABLED", message: "当前 AppId 未开通 RTC 产品", details: nil))
       } else {
         engine?.enableVideo()
         result(true)
@@ -364,7 +366,11 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
     case "setupLocalVideo":
       if let args = call.arguments as? [String: Any],
          let viewId = args["viewId"] as? Int {
-        engine?.setupLocalVideo(viewId: viewId)
+        if let container = SyRtcVideoPlatformView.container(forInt: viewId) {
+          engine?.setupLocalVideo(view: container)
+        } else {
+          engine?.setupLocalVideo(viewId: viewId)
+        }
         result(true)
       } else {
         result(false)
@@ -374,7 +380,11 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
       if let args = call.arguments as? [String: Any],
          let uid = args["uid"] as? String,
          let viewId = args["viewId"] as? Int {
-        engine?.setupRemoteVideo(uid: uid, viewId: viewId)
+        if let container = SyRtcVideoPlatformView.container(forInt: viewId) {
+          engine?.setupRemoteVideo(uid: uid, view: container)
+        } else {
+          engine?.setupRemoteVideo(uid: uid, viewId: viewId)
+        }
         result(true)
       } else {
         result(false)
@@ -574,81 +584,6 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
         result(false)
       }
 
-    case "startRtmpStreamWithTranscoding":
-      if !appFeatures.contains("live") {
-        result(FlutterError(code: "FEATURE_NOT_ENABLED", message: "当前AppId未开通直播功能", details: nil))
-        return
-      }
-      if let args = call.arguments as? [String: Any],
-         let url = args["url"] as? String {
-        let users = (args["transcodingUsers"] as? [[String: Any]])?.compactMap { u -> TranscodingUser? in
-          guard let uid = u["uid"] as? String else { return nil }
-          return TranscodingUser(
-            uid: uid,
-            x: u["x"] as? Double ?? 0,
-            y: u["y"] as? Double ?? 0,
-            width: u["width"] as? Double ?? 0,
-            height: u["height"] as? Double ?? 0,
-            zOrder: u["zOrder"] as? Int ?? 0,
-            alpha: u["alpha"] as? Double ?? 1.0
-          )
-        }
-        let transcoding = LiveTranscoding(
-          width: args["width"] as? Int ?? 360,
-          height: args["height"] as? Int ?? 640,
-          videoBitrate: args["videoBitrate"] as? Int ?? 400,
-          videoFramerate: args["videoFramerate"] as? Int ?? 15,
-          lowLatency: args["lowLatency"] as? Bool ?? false,
-          videoGop: args["videoGop"] as? Int ?? 30,
-          backgroundColor: args["backgroundColor"] as? Int ?? 0x000000,
-          watermarkUrl: args["watermarkUrl"] as? String,
-          transcodingUsers: users
-        )
-        engine?.startRtmpStreamWithTranscoding(url: url, transcoding: transcoding)
-        result(true)
-      } else {
-        result(false)
-      }
-
-    case "stopRtmpStream":
-      if let args = call.arguments as? [String: Any],
-         let url = args["url"] as? String {
-        engine?.stopRtmpStream(url: url)
-        result(true)
-      } else {
-        result(false)
-      }
-
-    case "updateRtmpTranscoding":
-      if let args = call.arguments as? [String: Any] {
-        let users = (args["transcodingUsers"] as? [[String: Any]])?.compactMap { u -> TranscodingUser? in
-          guard let uid = u["uid"] as? String else { return nil }
-          return TranscodingUser(
-            uid: uid,
-            x: u["x"] as? Double ?? 0,
-            y: u["y"] as? Double ?? 0,
-            width: u["width"] as? Double ?? 0,
-            height: u["height"] as? Double ?? 0,
-            zOrder: u["zOrder"] as? Int ?? 0,
-            alpha: u["alpha"] as? Double ?? 1.0
-          )
-        }
-        let transcoding = LiveTranscoding(
-          width: args["width"] as? Int ?? 360,
-          height: args["height"] as? Int ?? 640,
-          videoBitrate: args["videoBitrate"] as? Int ?? 400,
-          videoFramerate: args["videoFramerate"] as? Int ?? 15,
-          lowLatency: args["lowLatency"] as? Bool ?? false,
-          videoGop: args["videoGop"] as? Int ?? 30,
-          backgroundColor: args["backgroundColor"] as? Int ?? 0x000000,
-          watermarkUrl: args["watermarkUrl"] as? String,
-          transcodingUsers: users
-        )
-        engine?.updateRtmpTranscoding(transcoding)
-        result(true)
-      } else {
-        result(false)
-      }
 
     case "takeSnapshot":
       if let args = call.arguments as? [String: Any],
@@ -702,7 +637,7 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
   private func checkFeatures(appId: String, apiBaseUrl: String) {
     let urlString = "\(apiBaseUrl)/api/rtc/feature/\(appId)"
     guard let url = URL(string: urlString) else {
-      appFeatures = ["voice"]
+      appFeatures = ["rtc"]
       return
     }
     
@@ -715,7 +650,7 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
       
       if let error = error {
         // 查询失败，使用默认值
-        self.appFeatures = ["voice"]
+        self.appFeatures = ["rtc"]
         print("功能权限查询失败: \(error.localizedDescription)")
         return
       }
@@ -726,7 +661,7 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
             code == 0,
             let dataObj = json["data"] as? [String: Any],
             let featuresArray = dataObj["features"] as? [String] else {
-        self.appFeatures = ["voice"]
+        self.appFeatures = ["rtc"]
         return
       }
       
@@ -744,6 +679,14 @@ extension SyRtcFlutterSdkPlugin: SyRtcEventHandler {
   
   public func onUserOffline(uid: String, reason: String) {
     eventChannel?.invokeMethod("onUserOffline", arguments: ["uid": uid, "reason": reason])
+  }
+
+  public func onKicked(channelId: String, reason: String) {
+    eventChannel?.invokeMethod("onKicked", arguments: ["channelId": channelId, "reason": reason])
+  }
+
+  public func onServerMuteAudio(uid: String, muted: Bool) {
+    eventChannel?.invokeMethod("onServerMuteAudio", arguments: ["uid": uid, "muted": muted])
   }
   
   public func onVolumeIndication(speakers: [SyVolumeInfo]) {

@@ -1,5 +1,15 @@
 # SY RTC Flutter SDK 示例
 
+## 生产基址（2026-09-15）
+
+- API: `http://47.105.48.196`
+- 信令: `ws://47.105.48.196/ws/signaling`（RTC；须 `?token=`）
+- 文档: `docs/SDK_RTC.md` / `docs/SDK_IM.md`
+- 下载: `http://47.105.48.196/downloads/`
+
+本机调试仍可用 `10.0.2.2:8080`（Android 模拟器）或 `127.0.0.1`。
+
+
 本示例演示如何使用 `sy_rtc_flutter_sdk` 进行语聊房与直播相关功能测试（以语音功能为主）。
 
 ## 功能说明

@@ -271,6 +271,24 @@ class SyUserMuteAudioEvent extends SyRtcEvent {
       : super('userMuteAudio');
 }
 
+/// 被服务端踢出房间事件（控制面信令 / poll；非 SFU 强制断流）
+class SyKickedEvent extends SyRtcEvent {
+  final String channelId;
+  final String reason;
+
+  SyKickedEvent({required this.channelId, required this.reason})
+      : super('kicked');
+}
+
+/// 服务端静音/解静音事件（控制面 mute-audio；非 SFU ACL）
+class SyServerMuteAudioEvent extends SyRtcEvent {
+  final String uid;
+  final bool muted;
+
+  SyServerMuteAudioEvent({required this.uid, required this.muted})
+      : super('serverMuteAudio');
+}
+
 /// 频道消息事件（原始消息）
 class SyChannelMessageEvent extends SyRtcEvent {
   final String uid;

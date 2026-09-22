@@ -17,11 +17,10 @@ export 'src/sy_rtc_config.dart'
     SyVideoMirrorModeType,
     SyVideoDeviceInfo,
     SyScreenCaptureConfiguration,
-    SyBeautyOptions,
-    SyLiveTranscoding,
-    SyTranscodingUser;
+    SyBeautyOptions;
 export 'src/sy_rtc_config_extended.dart';
 export 'src/sy_rtc_video_quality.dart';
 export 'src/sy_rtc_event_handler.dart';
 export 'src/sy_rtc_events.dart';
 export 'src/sy_room_service.dart';
+export 'src/sy_rtc_video_view.dart';

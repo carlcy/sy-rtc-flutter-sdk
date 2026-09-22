@@ -3,7 +3,7 @@
 // @formatter:on
 
 group = "com.sy.rtc.flutter"
-version = "3.0.0"
+version = "3.1.0"
 
 buildscript {
     ext.kotlin_version = "2.0.21"
@@ -84,7 +84,7 @@ dependencies {
         // 这里使用 compileOnly 仅用于编译期；运行期由宿主 App 提供 SDK 依赖（JitPack 或本地 AAR）。
         compileOnly(files(localAar))
     } else {
-        api("com.github.carlcy:sy-rtc-android-sdk:v3.0.0")
+        api("com.github.carlcy:sy-rtc-android-sdk:v3.1.0")
     }
     
     testImplementation("org.jetbrains.kotlin:kotlin-test")
