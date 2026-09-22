@@ -629,14 +629,14 @@ await engine.setClientRole('host');
 **重要**：发布前确保原生 SDK 已发布！
 
 1. **确保原生 SDK 已发布**
-   - ✅ Android SDK 已发布到 JitPack（GitHub: carlcy/sy-rtc-android-sdk, v3.0.0）
+   - ✅ Android SDK 已发布到 JitPack（GitHub: carlcy/sy-rtc-android-sdk, v3.1.0）
    - ✅ iOS：Flutter 插件内置并自动集成（iOS 13+）
 
 2. **检查 pubspec.yaml**
    ```yaml
    name: sy_rtc_flutter_sdk
    description: "SY RTC Flutter SDK - A Flutter plugin for real-time audio and video communication"
-   version: 3.0.0
+   version: 3.1.0
    homepage: https://github.com/carlcy/sy_rtc_flutter_sdk
    ```
 
