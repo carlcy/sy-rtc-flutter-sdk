@@ -3,7 +3,7 @@
 // @formatter:on
 
 group = "com.sy.rtc.flutter"
-version = "3.1.0"
+version = "3.1.1"
 
 buildscript {
     ext.kotlin_version = "2.0.21"

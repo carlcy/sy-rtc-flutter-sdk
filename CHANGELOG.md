@@ -1,3 +1,7 @@
+## 3.1.1
+
+- Example / defaults：去掉公开服务器 IP，改用域名 `syrtcapi.shengyuchenyao.cn`
+
 ## 3.1.0
 
 ### 重大变更 / Breaking

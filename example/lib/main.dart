@@ -11,13 +11,13 @@ import 'app_config.dart';
 import 'token_service.dart';
 
 /// Single switch for all samples:
-///   --dart-define=SY_API_BASE=https://47.105.48.196
-///   --dart-define=SY_API_BASE=http://47.105.48.196
+///   --dart-define=SY_API_BASE=https://syrtcapi.shengyuchenyao.cn
+///   --dart-define=SY_API_BASE=https://syrtcapi.shengyuchenyao.cn
 ///   --dart-define=SY_API_BASE=https://syrtcapi.shengyuchenyao.cn  (only when LE/public CA works)
 String defaultApiBase() {
   const override = String.fromEnvironment('SY_API_BASE', defaultValue: '');
   if (override.isNotEmpty) return override;
-  return 'https://47.105.48.196';
+  return 'https://syrtcapi.shengyuchenyao.cn';
 }
 
 String defaultSignaling() {
@@ -30,7 +30,7 @@ String defaultSignaling() {
   if (base.startsWith('http://')) {
     return 'ws://${base.substring('http://'.length)}/ws/signaling';
   }
-  return 'wss://47.105.48.196/ws/signaling';
+  return 'wss://syrtcapi.shengyuchenyao.cn/ws/signaling';
 }
 
 void main() {
