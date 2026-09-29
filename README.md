@@ -2,675 +2,292 @@
 
 [![pub package](https://img.shields.io/pub/v/sy_rtc_flutter_sdk.svg)](https://pub.dev/packages/sy_rtc_flutter_sdk)
 
-**当前版本**: 3.1.1
+**当前版本**: 3.1.2
 
-SY RTC Flutter SDK 是一个用于实时音视频通信的 Flutter 插件，提供简洁易用的 API 接口。
+Flutter 实时音视频插件。Android / iOS 原生能力分别来自 [sy-rtc-android-sdk](https://github.com/carlcy/sy-rtc-android-sdk) 与 [sy-rtc-ios-sdk](https://github.com/carlcy/sy-rtc-ios-sdk)。
 
-## ⚠️ 重要提示
+客户工程只在 `pubspec.yaml` 里写包名和版本，然后 `flutter pub get`。不要下载 zip、不要把 AAR / framework 拷进工程。
 
-- **Android**：需要配置原生 Android SDK 依赖（JitPack）。
-- **iOS**：已在插件内置 iOS 端实现并通过 CocoaPods 自动集成（无需你手动在 Xcode 里加 SPM/Pod 依赖）。
-
-## ✨ 特性
-
-- ✅ **跨平台**：支持 Android 和 iOS
-- ✅ **简单易用**：API 设计简洁，易于集成和使用
-- ✅ **完整功能**：支持房间管理、音频控制、事件监听等核心功能
-
-## 📦 安装
-
-### 步骤一：配置原生 SDK 依赖
-
-#### Android 端配置
-
-在项目的根目录 `android/build.gradle` 中添加 JitPack 仓库：
-
-```gradle
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url 'https://jitpack.io' }  // 添加 JitPack 仓库
-    }
-}
-```
-
-在 `android/app/build.gradle` 中添加 Android SDK 依赖：
-
-```gradle
-dependencies {
-    // Android SDK（从 JitPack）
-    implementation 'com.github.carlcy:sy-rtc-android-sdk:v3.1.1'
-}
-```
-
-#### iOS 端配置
-
-无需额外配置。插件 iOS 端会通过 CocoaPods 自动集成所需依赖（最低 iOS 版本 **13.0**）。
-
-### 步骤二：安装 Flutter SDK
-
-在 `pubspec.yaml` 中添加：
+## 客户依赖（直接复制）
 
 ```yaml
 dependencies:
-  sy_rtc_flutter_sdk: ^3.1.1
+  sy_rtc_flutter_sdk: ^3.1.2
 ```
 
-然后运行：
-
-```bash
-flutter pub get
-```
-
-### 方式二：从 Git 安装
+包还没出现在 pub.dev 时，用已经打好的 tag（不要写 `ref: main`）：
 
 ```yaml
 dependencies:
   sy_rtc_flutter_sdk:
     git:
       url: https://github.com/carlcy/sy-rtc-flutter-sdk.git
-      ref: main
+      ref: v3.1.2
 ```
 
-## 🚀 快速开始
+本仓库 `example/pubspec.yaml` 里的 `path: ../` 只给插件作者本地联调，不是客户接入方式。
 
-### 1. 导入包
+然后执行：
 
-```dart
-import 'package:sy_rtc_flutter_sdk/sy_rtc_flutter_sdk.dart';
+```bash
+flutter pub get
 ```
 
-### 2. 创建引擎实例
+## 快速开始
 
-```dart
-final engine = SyRtcEngine();
+流程与即构 Flutter 快速开始相同：加依赖 → 配权限 → 初始化 → 向你的服务器要 Token → 进频道 → 渲染画面。
+
+### 1. 添加依赖
+
+见上一节。最低要求：Flutter >= 3.3.0，Dart >= 3.6.2，Android minSdk 21，iOS 13.0。
+
+### 2. 平台配置
+
+#### Android
+
+插件用 `api` 传递这份坐标（JitPack 上已有 `v3.1.0`）：
+
+```gradle
+implementation 'com.github.carlcy:sy-rtc-android-sdk:v3.1.0'
 ```
 
-### 3. 初始化引擎
+业务模块不用再写一遍，但必须能解析 JitPack。在 `android/build.gradle`：
 
-```dart
-// 方式一：仅初始化（默认只有语聊功能）
-await engine.init('your_app_id');
-
-// 方式二：初始化并查询功能权限（推荐）
-await engine.init(
-  'your_app_id',
-  apiBaseUrl: 'https://api.example.com', // 您的API基础URL
-);
-```
-
-**功能权限说明**：
-- 如果提供了 `apiBaseUrl`，SDK 会自动查询 AppId 的功能权限
-- 开通了 `rtc` 产品的 AppId 可使用音视频（含实时视频）
-- 默认按 `rtc` 产品位校验；IM 为独立 SDK
-
-### 4. 设置事件监听
-
-```dart
-// 监听用户加入
-engine.onUserJoined.listen((event) {
-  print('用户加入: ${event.uid}, 耗时: ${event.elapsed}ms');
-});
-
-// 监听用户离开
-engine.onUserOffline.listen((event) {
-  print('用户离开: ${event.uid}, 原因: ${event.reason}');
-});
-
-// 监听音量指示
-engine.onVolumeIndication.listen((event) {
-  event.speakers.forEach((info) {
-    print('用户 ${info.uid} 音量: ${info.volume}');
-  });
-});
-```
-
-### 5. 加入房间
-
-```dart
-// 先从服务器获取 Token（不能在前端直接生成）
-String token = await getTokenFromServer(appId, channelId, uid);
-
-// 加入房间
-await engine.join(
-  channelId: 'channel_001',
-  uid: 'user_001',
-  token: token,
-);
-```
-
-### 5.1 设置后端 API 认证 Token
-
-```dart
-// 用于调用需要登录认证的后端业务接口（与 join 的 RTC Token 不同）
-await engine.setApiAuthToken(jwt);
-```
-
-**房间列表与在线人数（对标声网）**：业务后端可调用以下接口供客户端展示房间列表、统计与热度：
-- `GET /api/room/active`（Header: X-App-Id）— 活跃房间列表，含 `currentSeats`、`maxSeats`、`heat`
-- `GET /api/room/statistics`（Header: X-App-Id）— 总房间数、活跃数、当前在线总人数
-- `GET /api/room/{channelId}/online-count` — 指定频道当前在线人数（无需加入频道即可查询）
-
-### 6. 检查功能权限
-
-```dart
-// 检查是否开通了 RTC 产品（音视频一体）
-if (await engine.hasRtcFeature()) {
-  await engine.enableLocalAudio(true);
-  await engine.enableVideo();
-  await engine.startPreview();
-} else {
-  print('当前 AppId 未开通 RTC 产品');
-}
-```
-
-### 7. 控制音频
-
-```dart
-// 启用本地音频
-await engine.enableLocalAudio(true);
-
-// 静音
-await engine.muteLocalAudio(true);
-
-// 取消静音
-await engine.muteLocalAudio(false);
-```
-
-### 7. 设置客户端角色
-
-```dart
-// 设置为主播（可以说话）
-await engine.setClientRole('host');
-
-// 设置为观众（只能听）
-await engine.setClientRole('audience');
-```
-
-### 8. 离开房间
-
-```dart
-await engine.leave();
-```
-
-### 9. 释放资源
-
-```dart
-engine.dispose();
-```
-
-## 📖 完整示例
-
-```dart
-import 'package:sy_rtc_flutter_sdk/sy_rtc_flutter_sdk.dart';
-
-class RtcPage extends StatefulWidget {
-  @override
-  _RtcPageState createState() => _RtcPageState();
-}
-
-class _RtcPageState extends State<RtcPage> {
-  late SyRtcEngine _engine;
-  bool _isJoined = false;
-  bool _isMuted = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initEngine();
-  }
-
-  Future<void> _initEngine() async {
-    _engine = SyRtcEngine();
-    
-    // 初始化
-    await _engine.init('your_app_id');
-    
-    // 设置事件监听
-    _engine.onUserJoined.listen((event) {
-      print('用户加入: ${event.uid}');
-    });
-    
-    _engine.onUserOffline.listen((event) {
-      print('用户离开: ${event.uid}');
-    });
-  }
-
-  Future<void> _joinChannel() async {
-    try {
-      // 从服务器获取 Token
-      String token = await _getTokenFromServer();
-      
-      await _engine.join(
-        channelId: 'channel_001',
-        uid: 'user_001',
-        token: token,
-      );
-      
-      setState(() {
-        _isJoined = true;
-      });
-      
-      // 启用本地音频
-      await _engine.enableLocalAudio(true);
-    } catch (e) {
-      print('加入房间失败: $e');
+```gradle
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
     }
-  }
-
-  Future<void> _leaveChannel() async {
-    await _engine.leave();
-    setState(() {
-      _isJoined = false;
-    });
-  }
-
-  Future<void> _toggleMute() async {
-    await _engine.muteLocalAudio(!_isMuted);
-    setState(() {
-      _isMuted = !_isMuted;
-    });
-  }
-
-  @override
-  void dispose() {
-    _engine.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('RTC 房间')),
-      body: Column(
-        children: [
-          if (!_isJoined)
-            ElevatedButton(
-              onPressed: _joinChannel,
-              child: Text('加入房间'),
-            )
-          else ...[
-            ElevatedButton(
-              onPressed: _leaveChannel,
-              child: Text('离开房间'),
-            ),
-            ElevatedButton(
-              onPressed: _toggleMute,
-              child: Text(_isMuted ? '取消静音' : '静音'),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 }
 ```
 
-## 🔧 权限配置
+如果工程把仓库收进了 `android/settings.gradle` 的 `dependencyResolutionManagement`，把同一条 `maven { url 'https://jitpack.io' }` 加到那里。
 
-### Android
-
-**无需手动配置！** Flutter 插件会自动处理权限。
-
-如果遇到权限问题，检查 `android/app/src/main/AndroidManifest.xml` 是否包含：
+权限（插件 Manifest 会合并进宿主；麦克风和摄像头仍要在运行时申请）：
 
 ```xml
 <uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 <uses-permission android:name="android.permission.RECORD_AUDIO" />
 <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 ```
 
-### iOS
+运行时申请可以用 `permission_handler`：
 
-**无需手动配置！** Flutter 插件会自动处理权限。
+```dart
+await Permission.microphone.request();
+await Permission.camera.request();
+```
 
-如果遇到权限问题，检查 `ios/Runner/Info.plist` 是否包含：
+#### iOS
+
+在 `ios/Runner/Info.plist` 增加用途说明，否则系统不会弹出授权：
 
 ```xml
 <key>NSMicrophoneUsageDescription</key>
 <string>需要麦克风权限进行语音通话</string>
+<key>NSCameraUsageDescription</key>
+<string>需要摄像头权限进行视频通话</string>
 ```
 
-## 📚 API 文档
+`pod install` 由 Flutter 在构建时执行，最低 iOS 13.0。
 
-### SyRtcEngine
+**iOS 原生 SDK 为什么还在插件里，而不是 CocoaPods 坐标：**
 
-#### 初始化
+目标坐标是 `pod 'SyRtcSDK', '3.1.0'`，源码仓库是 `https://github.com/carlcy/sy-rtc-ios-sdk`（tag `v3.1.0`，也有 SPM 的 `Package.swift`）。CocoaPods 的 `s.dependency` 只能解析 trunk 或 spec 仓库，不能写 git URL。2026-09 查过 trunk，没有名为 `SyRtcSDK` 的 pod。因此插件暂时编译 `ios/SyRtcSDK` 源码，并依赖 `GoogleWebRTC`（源码是 `import WebRTC`）。
 
-```dart
-Future<void> init(String appId, {String? apiBaseUrl, String? signalingUrl})
+Android 已经能按坐标拉取，所以 example 里的本地 AAR / flatDir 已去掉。
+
+维护者把 iOS SDK 推上 trunk 之后，把 `ios/sy_rtc_flutter_sdk.podspec` 改成：
+
+```ruby
+s.dependency 'SyRtcSDK', '3.1.0'
+s.dependency 'WebRTC-SDK', '~> 125.6422.07'
 ```
 
-初始化 RTC 引擎。
+并删除 pod 内的 `SyRtcSDK` 源码，同时给插件 Swift 补上 `import SyRtcSDK`。在那之前不要让客户自己 `pod 'SyRtcSDK'`，否则会和插件里的同名类型重复。
 
-**参数：**
-- `appId`: 应用ID，从用户后台获取
+### 3. 初始化
 
-**示例：**
 ```dart
+import 'package:sy_rtc_flutter_sdk/sy_rtc_flutter_sdk.dart';
+
+final engine = SyRtcEngine();
+
 await engine.init(
-  'your_app_id',
-  apiBaseUrl: 'https://api.example.com',
+  appId, // 控制台分配的 AppId
+  apiBaseUrl: 'https://syrtcapi.shengyuchenyao.cn',
   signalingUrl: 'wss://syrtcapi.shengyuchenyao.cn/ws/signaling',
 );
 ```
 
-#### 加入房间
+传了 `apiBaseUrl` 时，SDK 会查询该 AppId 是否开通 `rtc`。视频相关接口在未开通时会抛错。
+
+### 4. 获取 Token
+
+Token 由你的业务服务器调用 SY 的 `POST /api/rtc/token` 签发。客户端不要自己拼 Token，也不要在正式包里放 AppSecret。
 
 ```dart
-Future<void> join({
-  required String channelId,
-  required String uid,
-  required String token,
-})
-```
+final room = SyRoomService(apiBaseUrl: apiBase, appId: appId);
+room.setAuthToken(userJwt); // 或仅测试环境 room.setAppSecret(appSecret);
 
-加入语音房间。
-
-**参数：**
-- `channelId`: 房间ID
-- `uid`: 用户ID（字符串类型）
-- `token`: 鉴权Token（从服务器获取，不能在前端生成）
-
-**示例：**
-```dart
-await engine.join(
-  channelId: 'channel_001',
-  uid: 'user_001',
-  token: 'token_from_server',
+final token = await room.fetchToken(
+  channelId: channelId,
+  uid: uid,
+  tier: SyQualityTier.sd, // audio | sd | hd | fhd
 );
 ```
 
-#### 离开房间
+查询参数与后端一致：`channelId`、`uid`、`expireHours`、`role`、`qualityTier`。
+
+### 5. 加入频道
 
 ```dart
-Future<void> leave()
-```
+engine.onUserJoined.listen((event) {
+  debugPrint('远端加入 ${event.uid}');
+});
 
-离开当前房间。
-
-**示例：**
-```dart
-await engine.leave();
-```
-
-#### 启用/禁用本地音频
-
-```dart
-Future<void> enableLocalAudio(bool enabled)
-```
-
-启用或禁用本地音频采集和播放。
-
-**参数：**
-- `enabled`: `true` 为启用，`false` 为禁用
-
-**示例：**
-```dart
+await engine.setClientRole('host'); // 观众用 'audience'
+await engine.join(channelId, uid, token);
 await engine.enableLocalAudio(true);
 ```
 
-#### 静音/取消静音
+离开与释放：
 
 ```dart
-Future<void> muteLocalAudio(bool muted)
-```
-
-静音或取消静音本地音频。
-
-**参数：**
-- `muted`: `true` 为静音，`false` 为取消静音
-
-**示例：**
-```dart
-await engine.muteLocalAudio(true);  // 静音
-await engine.muteLocalAudio(false); // 取消静音
-```
-
-#### 设置客户端角色
-
-```dart
-Future<void> setClientRole(String role)
-```
-
-设置客户端角色。
-
-**参数：**
-- `role`: `'host'` 或 `'audience'`
-  - `'host'`: 主播，可以说话
-  - `'audience'`: 观众，只能听
-
-**示例：**
-```dart
-await engine.setClientRole('host');
-```
-
-#### 释放资源
-
-```dart
-void dispose()
-```
-
-释放引擎资源。在不再使用引擎时调用。
-
-**示例：**
-```dart
+await engine.leave();
 engine.dispose();
 ```
 
-### 事件监听
-
-#### 用户加入事件
+### 6. 渲染视频
 
 ```dart
-Stream<SyUserJoinedEvent> get onUserJoined
+await engine.enableVideo(quality: SyVideoQualityPreset.standard());
+await engine.enableLocalVideo(true);
+await engine.startPreview();
+
+// 本地预览：uid 留空
+SyRtcVideoView(engine: engine, mirror: true);
+
+// 远端：onUserJoined 拿到 uid 后
+SyRtcVideoView(engine: engine, uid: remoteUid);
 ```
 
-当有用户加入房间时触发。
+`SyRtcVideoView` 是 `AndroidView` / `UiKitView`，viewType 为 `sy_rtc_flutter_sdk/video_view`。模拟器通常没有摄像头，画面黑屏不代表绑定失败。
 
-**事件数据：**
-```dart
-class SyUserJoinedEvent {
-  final String uid;      // 用户ID
-  final int elapsed;      // 加入耗时（毫秒）
-}
-```
+### 7. 续期 Token
 
-**示例：**
-```dart
-engine.onUserJoined.listen((event) {
-  print('用户 ${event.uid} 加入，耗时 ${event.elapsed}ms');
-});
-```
-
-#### 用户离开事件
+在 `onTokenPrivilegeWillExpire`（即将过期）和 `onRequestToken`（已过期）里向业务服务器再要一次 Token，然后交给引擎。引擎只保存新 Token，供后续重连使用，不会中途拆掉信令连接。
 
 ```dart
-Stream<SyUserOfflineEvent> get onUserOffline
+engine.setEventHandler(SyRtcEventHandler(
+  onTokenPrivilegeWillExpire: () async {
+    final next = await room.fetchToken(
+      channelId: channelId,
+      uid: uid,
+      tier: SyQualityTier.sd,
+    );
+    await engine.renewToken(next);
+  },
+  onRequestToken: () async {
+    final next = await room.fetchToken(
+      channelId: channelId,
+      uid: uid,
+      tier: SyQualityTier.sd,
+    );
+    await engine.renewToken(next);
+  },
+));
 ```
 
-当有用户离开房间时触发。
+### 8. 切换画质
 
-**事件数据：**
+`SyQualityTier` 与后端 `qualityTier` 对齐。先拿新档位的 Token 并 `renewToken`，再改本地编码，避免本地分辨率高于 Token 允许的档位。
+
 ```dart
-class SyUserOfflineEvent {
-  final String uid;      // 用户ID
-  final String reason;    // 离开原因
-}
+final next = await room.fetchToken(
+  channelId: channelId,
+  uid: uid,
+  tier: SyQualityTier.hd,
+);
+await engine.renewToken(next);
+await engine.setQualityTier(SyQualityTier.hd);
 ```
 
-**示例：**
-```dart
-engine.onUserOffline.listen((event) {
-  print('用户 ${event.uid} 离开，原因: ${event.reason}');
-});
+| 档位 | 后端取值 | 本地编码 |
+| --- | --- | --- |
+| 语音 | `audio` | 关闭视频模块 |
+| 标清 | `sd` | 480p |
+| 高清 | `hd` | 720p |
+| 超清 | `fhd` | 1080p |
+
+原有的 `setVideoQuality` / `setVideoEncoderConfiguration` 不变。4K 预设 `SyVideoQualityPreset.ultraHd()` 在换 Token 时映射到 `fhd`，因为后端没有单独的 4K 档。
+
+## 示例
+
+```bash
+cd example
+flutter pub get
+flutter run
 ```
 
-#### 音量指示事件
+示例默认请求 `https://syrtcapi.shengyuchenyao.cn`。覆盖地址：
 
-```dart
-Stream<SyVolumeIndicationEvent> get onVolumeIndication
+```bash
+flutter run --dart-define=SY_API_BASE=https://your-api.example
 ```
 
-当检测到用户音量变化时触发。
+页面上可以初始化、拉取 Token、加入/离开、静音、打开视频、续期 Token，以及在语音/标清/高清/超清之间切换。
 
-**事件数据：**
-```dart
-class SyVolumeIndicationEvent {
-  final List<VolumeInfo> speakers;  // 说话者列表
-}
+## 发布到 pub.dev（维护者）
 
-class VolumeInfo {
-  final String uid;      // 用户ID
-  final int volume;      // 音量（0-255）
-}
+客户要写的那一行是：
+
+```yaml
+sy_rtc_flutter_sdk: ^3.1.2
 ```
 
-**示例：**
-```dart
-engine.onVolumeIndication.listen((event) {
-  event.speakers.forEach((info) {
-    print('用户 ${info.uid} 音量: ${info.volume}');
-  });
-});
+发布前：
+
+1. 确认 Android 坐标还能解析。当前插件依赖的是已经在 JitPack 上的 `com.github.carlcy:sy-rtc-android-sdk:v3.1.0`。原生 SDK 升版本时，改 `android/build.gradle` 里的坐标，打对应 git tag，等 JitPack 构建成功，再发 Flutter 包。
+2. iOS 仍随插件编译源码，直到 `SyRtcSDK` 出现在 CocoaPods trunk。推送步骤在 [sy-rtc-ios-sdk 的发布说明](https://github.com/carlcy/sy-rtc-ios-sdk/blob/main/PUBLISH_GUIDE.md)：`pod trunk register` → `pod lib lint SyRtcSDK.podspec` → `pod trunk push SyRtcSDK.podspec`。trunk 成功后再改本仓库 podspec（见上文），不要提前删掉 `ios/SyRtcSDK`。
+3. 对齐版本号：`pubspec.yaml`、`CHANGELOG.md`、`android/build.gradle` 的 `version`、`ios/sy_rtc_flutter_sdk.podspec` 的 `s.version`。CHANGELOG 最上一项必须是这个版本。
+4. 在仓库根目录检查：
+
+```bash
+dart pub publish --dry-run
 ```
 
-## 🔑 如何获取 Token？
+没有 error 再发布。首次需要：
 
-**重要**：Token 必须从服务器获取，不能在前端直接生成！
-
-### 推荐流程
-
-1. **客户端请求加入房间**
-   ```dart
-   // 客户端代码
-   final response = await http.post(
-     Uri.parse('https://your-api.com/rtc/token'),
-     body: {
-       'appId': appId,
-       'channelId': channelId,
-       'uid': uid,
-     },
-   );
-   final token = jsonDecode(response.body)['data']['token'];
-   ```
-
-2. **服务器生成 Token**
-   ```java
-   // 服务器代码（Java Spring Boot）
-   @PostMapping("/rtc/token")
-   public Result<String> generateToken(@RequestBody TokenRequest request) {
-       String token = rtcService.generateToken(
-           request.getAppId(),
-           request.getChannelId(),
-           request.getUid()
-       );
-       return Result.success(token);
-   }
-   ```
-
-3. **客户端使用 Token 加入房间**
-   ```dart
-   await engine.join(
-     channelId: channelId,
-     uid: uid,
-     token: token,
-   );
-   ```
-
-## ❓ 常见问题
-
-### 1. SDK 初始化失败？
-
-**可能原因：**
-- AppId 不正确
-- 网络连接问题
-- 权限未授予
-
-**解决方法：**
-- 检查 AppId 是否正确（从用户后台获取）
-- 检查网络连接
-- 确保已授予麦克风权限（Android/iOS 会自动请求）
-
-### 2. 无法加入房间？
-
-**可能原因：**
-- Token 无效或已过期
-- 房间不存在
-- 账户余额不足
-
-**解决方法：**
-- 重新从服务器获取 Token
-- 确认房间ID正确
-- 检查账户余额
-
-### 3. 没有声音？
-
-**可能原因：**
-- 本地音频未启用
-- 已静音
-- 角色设置为观众
-
-**解决方法：**
-```dart
-// 启用本地音频
-await engine.enableLocalAudio(true);
-
-// 取消静音
-await engine.muteLocalAudio(false);
-
-// 设置为主播
-await engine.setClientRole('host');
+```bash
+dart pub login
+dart pub publish
 ```
 
-### 4. 如何发布到 pub.dev？
+5. 发布成功后打 tag，供 git 依赖使用（tag 与 pubspec 版本一致，带 `v` 前缀）：
 
-**重要**：发布前确保原生 SDK 已发布！
+```bash
+git tag v3.1.2
+git push origin v3.1.2
+```
 
-1. **确保原生 SDK 已发布**
-   - ✅ Android SDK 已发布到 JitPack（GitHub: carlcy/sy-rtc-android-sdk, v3.1.0）
-   - ✅ iOS：Flutter 插件内置并自动集成（iOS 13+）
+`dart pub publish` 会带上 `example/`。example 继续使用 `path: ../`，这是 pub.dev 对插件示例的常规写法。
 
-2. **检查 pubspec.yaml**
-   ```yaml
-   name: sy_rtc_flutter_sdk
-   description: "SY RTC Flutter SDK - A Flutter plugin for real-time audio and video communication"
-   version: 3.1.0
-   homepage: https://github.com/carlcy/sy_rtc_flutter_sdk
-   ```
+## 常见问题
 
-3. **运行检查**
-   ```bash
-   flutter pub publish --dry-run
-   ```
+**初始化或进房失败。** 核对 AppId、Token 是否过期、麦克风/摄像头是否已授权。Token 必须来自业务服务器。
 
-4. **发布**
-   ```bash
-   flutter pub publish
-   ```
+**Android 构建找不到 `com.github.carlcy:sy-rtc-android-sdk`。** 宿主仓库列表里没有 `https://jitpack.io`。不要改回本地 AAR。
 
-**注意**：用户使用 Flutter SDK 时，需要先配置原生 SDK 依赖（参考上面的"步骤一"）。
+**iOS 模拟器黑屏。** 模拟器通常没有摄像头。用真机看 `SyRtcVideoView`。
 
-## 📱 平台要求
+**没有声音。** 依次 `enableLocalAudio(true)`、`muteLocalAudio(false)`、`setClientRole('host')`。
 
-- **Flutter**: >=3.3.0
-- **Dart**: >=3.6.2
-- **Android**: minSdk 21+ (Android 5.0)
-- **iOS**: iOS 13.0+
-
-## 📄 许可证
+## 许可证
 
 MIT License
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-## 📧 联系方式
-
-如有问题，请提交 Issue 或联系开发团队。
-
----
-
-**最后更新**: 2026-01-14

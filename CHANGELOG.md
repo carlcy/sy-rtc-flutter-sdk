@@ -1,3 +1,11 @@
+## 3.1.2
+
+- 客户接入改为在 `pubspec.yaml` 写 `sy_rtc_flutter_sdk: ^3.1.2`（或 git `ref: v3.1.2`）。example 仍用 `path: ../` 做本地联调。
+- Android 原生 SDK 固定为 JitPack 坐标 `com.github.carlcy:sy-rtc-android-sdk:v3.1.0`，去掉本地 AAR 回退。
+- iOS：`SyRtcSDK` 尚未进入 CocoaPods trunk，插件继续编译内置源码；说明见 README。
+- 新增 `SyQualityTier` / `SyRtcEngine.setQualityTier`，与后端 `qualityTier=audio|sd|hd|fhd` 对齐；`renewToken` 在 iOS 上会保存新 Token。
+- 补齐 pub.dev 发布元数据（topics、issue_tracker）与中文快速开始。
+
 ## 3.1.1
 
 - Example / defaults：去掉公开服务器 IP，改用域名 `syrtcapi.shengyuchenyao.cn`

@@ -576,7 +576,11 @@ internal class SyRtcEngineImpl {
             print("Token为空")
             return
         }
-        
+
+        // 与 Android 一致：先记下新 Token，供后续重连 / 重新 join 使用。
+        // 信令 URL 在连接时校验 Token，热替换 WebSocket 会打断通话，这里不主动重连。
+        currentToken = token
+
         print("更新Token: \(token.prefix(20))...")
         
         // 更新所有PeerConnection的配置

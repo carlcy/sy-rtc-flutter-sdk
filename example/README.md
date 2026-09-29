@@ -1,134 +1,50 @@
-# SY RTC Flutter SDK 示例
+# SY RTC Flutter 示例
 
-## 生产基址（2026-09-15）
+这个示例演示客户会走的通话流程：初始化、向业务服务器要 Token、加入频道、渲染本地/远端视频、续期 Token、切换画质。
 
-- API: `https://syrtcapi.shengyuchenyao.cn`
-- 信令: `wss://syrtcapi.shengyuchenyao.cn/ws/signaling`（RTC；须 `?token=`）
-- 文档: `docs/SDK_RTC.md` / `docs/SDK_IM.md`
-- 下载: `https://syrtcapi.shengyuchenyao.cn/downloads/`
+## 客户怎么依赖 SDK
 
-本机调试仍可用 `10.0.2.2:8080`（Android 模拟器）或 `127.0.0.1`。
+正式工程写版本，不要下载 zip：
 
+```yaml
+dependencies:
+  sy_rtc_flutter_sdk: ^3.1.2
+```
 
-本示例演示如何使用 `sy_rtc_flutter_sdk` 进行语聊房与直播相关功能测试（以语音功能为主）。
-
-## 功能说明
-
-- **配置**：填写 API 基础 URL、信令 URL、AppId，可选填写 JWT（用于后端认证/直播）与 AppSecret（demo 用）。
-- **初始化**：点击「保存并初始化」后，SDK 会请求后端功能权限（语聊/直播）。
-- **拉取 Token**：若已填 JWT 或 AppSecret，可点击「拉取 Token」从后端 `POST /api/rtc/token` 获取 RTC Token；否则需手动粘贴 Token。
-- **加入/离开频道**：使用频道 ID、用户 ID 和 Token 加入或离开 RTC 频道。
-- **静音/取消静音**：在频道内控制本地麦克风。
-- **语音增强**：扬声器切换、角色切换、远端静音、音频 Profile/Scenario、音频质量、音量调节、混音/音效/录音、数据流消息等。
-- **直播控制面板**：进入直播控制页，配置 RTMP 推流地址、布局与转码参数，进行开播/停播。
-
-## 环境要求
-
-- Flutter SDK 3.6+
-- Android：Android SDK（API 21+）
-- iOS：Xcode 与 CocoaPods（真机/模拟器）
-
-## 依赖
-
-示例使用本地插件路径依赖：
+还没发到 pub.dev 时：
 
 ```yaml
 dependencies:
   sy_rtc_flutter_sdk:
-    path: ../
-  http: ^1.2.0
+    git:
+      url: https://github.com/carlcy/sy-rtc-flutter-sdk.git
+      ref: v3.1.2
 ```
 
-首次运行前请执行：
+本目录的 `pubspec.yaml` 使用 `path: ../`，只为了在本仓库里跑当前源码。这不是客户接入方式。
+
+Android 原生库由插件传递，坐标是 `com.github.carlcy:sy-rtc-android-sdk:v3.1.0`（JitPack）。示例不再引用本地 AAR。iOS 在 `SyRtcSDK` 进入 CocoaPods trunk 之前随插件编译源码，说明见仓库根目录 README。
+
+## 运行
 
 ```bash
-cd sy_rtc_flutter_sdk/example
 flutter pub get
+flutter run
 ```
 
-## 打包与运行
-
-### Android
-
-- **调试 APK**（用于测试）：
-  ```bash
-  cd sy_rtc_flutter_sdk/example
-  flutter build apk --debug
-  ```
-  输出：`build/app/outputs/flutter-apk/app-debug.apk`
-
-- **Release APK**（正式包）：
-  ```bash
-  flutter build apk --release
-  ```
-  输出：`build/app/outputs/flutter-apk/app-release.apk`
-
-- **直接安装到设备**：
-  ```bash
-  flutter run
-  ```
-  或先 `flutter devices` 选择设备后 `flutter run -d <device_id>`。
-
-### iOS
-
-- **真机/模拟器运行**：
-  ```bash
-  cd sy_rtc_flutter_sdk/example
-  flutter run
-  ```
-  首次 iOS 构建需安装 CocoaPods 依赖：`cd ios && pod install && cd ..`（若 Flutter 未自动执行）。
-
-- **打包 IPA（需 Apple 开发者账号与签名）**：
-  ```bash
-  flutter build ipa
-  ```
-  或使用 Xcode 打开 `ios/Runner.xcworkspace` 进行 Archive 与导出。
-
-- **仅构建 iOS 应用（不打包 IPA）**：
-  ```bash
-  flutter build ios
-  ```
-
-## 从项目根目录执行
-
-若当前在仓库根目录 `rtc`：
+默认 API：`https://syrtcapi.shengyuchenyao.cn`。覆盖：
 
 ```bash
-# Android 调试包
-flutter build apk --debug -t sy_rtc_flutter_sdk/example/lib/main.dart -C sy_rtc_flutter_sdk/example
-
-# iOS 运行
-flutter run -t sy_rtc_flutter_sdk/example/lib/main.dart -C sy_rtc_flutter_sdk/example
+flutter run --dart-define=SY_API_BASE=https://your-api.example
 ```
 
-## 配置说明
+填写控制台里的 AppId。测试环境可填 AppSecret，用来请求 `POST /api/rtc/token`。正式客户端不要内置 AppSecret。
 
-- **API 基础 URL**：与后端约定，如 `https://your-rtc-server.com`（不要末尾 `/`）。
-- **信令 URL**：WebSocket 地址，如 `wss://your-rtc-server.com/ws/signaling`。
-- **AppId**：后端分配的应用 ID。
-- **JWT**：用户登录后获得的 Bearer Token，用于调用 `POST /api/rtc/token` 获取 RTC Token，或用于直播认证。
-- **AppSecret（仅demo）**：后端应用密钥，用于 demo 环境获取 RTC Token。生产环境不要在客户端明文保存。
-
-后端 RTC Token 接口见项目根目录 `API_REFERENCE.md`（`POST /api/rtc/token`）。
-
-如需快速体验，可使用仓库内的 `rtc-demo-backend` 作为 demo 后端，配置 `RTC_API_BASE_URL / RTC_APP_ID / RTC_APP_SECRET` 后即可提供 `token/feature` 接口。
+页面按钮：请求权限、初始化、加入、离开、静音、启用视频、续期 Token、语音/标清/高清/超清。
 
 ## 权限
 
-- **Android**：已在 `AndroidManifest.xml` 中声明 `INTERNET`、`RECORD_AUDIO`、`MODIFY_AUDIO_SETTINGS`、`CAMERA`、`ACCESS_NETWORK_STATE`。
-- **iOS**：已在 `Info.plist` 中配置 `NSMicrophoneUsageDescription`、`NSCameraUsageDescription`；测试环境允许 HTTP 通过 `NSAppTransportSecurity`。
+- Android：`example/android/app/src/main/AndroidManifest.xml`
+- iOS：`example/ios/Runner/Info.plist`（`NSMicrophoneUsageDescription`、`NSCameraUsageDescription`）
 
-## 常见问题
-
-### Android 构建失败：NDK source.properties 缺失 (CXX1101)
-
-若出现 `NDK at ... did not have a source.properties file`，多为 NDK 下载不完整。处理方式：
-
-1. 删除提示路径下的 NDK 目录（如 `$ANDROID_HOME/ndk/28.2.13676358`）。
-2. 再次执行 `flutter build apk --debug`，由 Android Gradle Plugin 自动重新下载 NDK。
-
-## 参考
-
-- [Flutter 官方文档](https://docs.flutter.dev/)
-- 项目根目录 `API_REFERENCE.md`：后端 API 说明
-- 项目根目录 `SDK_AUDIT_CHECKLIST.md`：SDK 与后端对齐说明
+模拟器经常没有摄像头，PlatformView 黑屏是预期情况。真机才能看到画面。

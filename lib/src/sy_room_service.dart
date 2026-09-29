@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'sy_rtc_video_quality.dart';
+
 /// 房间信息
 class SyRoomInfo {
   final String channelId;
@@ -230,22 +232,28 @@ class SyRoomService {
   ///
   /// 返回用于 [SyRtcEngine.join] 的 RTC Token；信令 WS 须带 `?token=`。
   /// [role] host|audience|publisher|subscriber
+  /// [qualityTier] 后端档位字符串：`audio` | `sd` | `hd` | `fhd`
+  /// [tier] 与 [qualityTier] 相同含义的枚举；两者都传时以 [qualityTier] 为准
   Future<String> fetchToken({
     required String channelId,
     required String uid,
     int expireHours = 24,
     String? role,
     String? qualityTier,
+    SyQualityTier? tier,
     bool meta = false,
   }) async {
+    final resolvedTier = (qualityTier != null && qualityTier.isNotEmpty)
+        ? qualityTier
+        : tier?.wireValue;
     final queryParams = <String, String>{
       'channelId': channelId,
       'uid': uid,
       'expireHours': expireHours.toString(),
     };
     if (role != null && role.isNotEmpty) queryParams['role'] = role;
-    if (qualityTier != null && qualityTier.isNotEmpty) {
-      queryParams['qualityTier'] = qualityTier;
+    if (resolvedTier != null && resolvedTier.isNotEmpty) {
+      queryParams['qualityTier'] = resolvedTier;
     }
     if (meta) queryParams['meta'] = 'true';
     final result = await _httpRequest(
@@ -271,6 +279,7 @@ class SyRoomService {
     int expireHours = 24,
     String? role,
     String? qualityTier,
+    SyQualityTier? tier,
     bool meta = false,
   }) =>
       fetchToken(
@@ -279,6 +288,7 @@ class SyRoomService {
         expireHours: expireHours,
         role: role,
         qualityTier: qualityTier,
+        tier: tier,
         meta: meta,
       );
 

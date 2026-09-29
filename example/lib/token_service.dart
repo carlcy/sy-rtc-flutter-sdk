@@ -18,6 +18,7 @@ class TokenService {
     required String channelId,
     required String uid,
     int expireHours = 24,
+    String? qualityTier,
   }) async {
     final jwt = config.jwt;
     final appSecret = config.appSecret;
@@ -25,12 +26,16 @@ class TokenService {
       throw Exception('未配置 JWT 或 AppSecret，请在配置页填写（demo 可用 AppSecret）');
     }
 
+    final query = <String, String>{
+      'channelId': channelId,
+      'uid': uid,
+      'expireHours': expireHours.toString(),
+    };
+    if (qualityTier != null && qualityTier.isNotEmpty) {
+      query['qualityTier'] = qualityTier;
+    }
     final uri = Uri.parse(config.tokenEndpoint).replace(
-      queryParameters: {
-        'channelId': channelId,
-        'uid': uid,
-        'expireHours': expireHours.toString(),
-      },
+      queryParameters: query,
     );
 
     final headers = <String, String>{

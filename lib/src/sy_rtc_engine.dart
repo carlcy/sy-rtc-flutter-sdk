@@ -90,7 +90,7 @@ class SyRtcEngine {
       });
     } catch (e) {
       // 权限检查失败不影响初始化，默认只有语聊功能
-      print('功能权限检查失败: $e');
+      debugPrint('功能权限检查失败: $e');
     }
   }
 
@@ -535,6 +535,27 @@ class SyRtcEngine {
 
     final configMap = preset.toEncoderConfigMap();
     await _channel.invokeMethod('setVideoEncoderConfiguration', configMap);
+  }
+
+  /// 按后端画质档位切换本地编码。
+  ///
+  /// 档位与 `POST /api/rtc/token?qualityTier=` 一致：`audio`、`sd`、`hd`、`fhd`。
+  /// 只改本地编码；`audio` 会关闭视频模块。不会向业务服务器申请新 Token。
+  /// 若服务端按 Token 里的 qualityTier 限流，请先用 `SyRoomService.fetchToken`
+  /// 传入同一档位，再调用 [renewToken]。
+  Future<void> setQualityTier(SyQualityTier tier) async {
+    switch (tier) {
+      case SyQualityTier.audio:
+        await setAudioQuality(SyAudioQualityLevel.medium);
+        await disableVideo();
+      case SyQualityTier.sd:
+      case SyQualityTier.hd:
+      case SyQualityTier.fhd:
+        final preset = tier.videoPreset;
+        if (preset != null) {
+          await setVideoQuality(preset);
+        }
+    }
   }
 
   /// 设置音频质量等级
