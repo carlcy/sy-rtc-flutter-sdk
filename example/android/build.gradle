@@ -6,7 +6,7 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // 插件以 api 依赖 com.github.carlcy:sy-rtc-android-sdk:v3.1.0
+        // 插件以 api 依赖 com.github.carlcy:sy-rtc-android-sdk:v3.2.0
         maven { url 'https://jitpack.io' }
     }
 }

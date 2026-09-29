@@ -4,7 +4,7 @@ description: "Demonstrates how to use the sy_rtc_flutter_sdk plugin."
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 3.1.2+1
+version: 3.2.0+1
 
 environment:
   sdk: ^3.6.2
@@ -24,12 +24,12 @@ dependencies:
 
   sy_rtc_flutter_sdk:
     # 客户工程请写版本约束，不要下载 zip、也不要拷贝源码目录：
-    #   sy_rtc_flutter_sdk: ^3.1.2
+    #   sy_rtc_flutter_sdk: ^3.2.0
     # 若包尚未出现在 pub.dev，改用打过 tag 的 git（ref 必须是 tag，不要用 main）：
     #   sy_rtc_flutter_sdk:
     #     git:
     #       url: https://github.com/carlcy/sy-rtc-flutter-sdk.git
-    #       ref: v3.1.2
+    #       ref: v3.2.0
     # 下面的 path 只给本仓库本地联调，发布到 pub.dev 的 example 也保持这样。
     path: ../
 

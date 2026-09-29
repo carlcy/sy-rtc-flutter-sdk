@@ -19,4 +19,4 @@ Android 模拟器访问电脑的 `127.0.0.1` 时，把地址写成 `http://10.0.
 
 Token：`POST /api/rtc/token?channelId&uid&qualityTier`，请求头 `X-App-Id`，测试环境可加 `X-App-Secret`。
 
-不要从下载站取 zip 来接 SDK。客户写 `sy_rtc_flutter_sdk: ^3.1.2`。
+不要从下载站取 zip 来接 SDK。客户写 `sy_rtc_flutter_sdk: ^3.2.0`。

@@ -43,7 +43,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SY RTC Example',
+      title: 'SY RTC $kSyRtcFlutterSdkVersion',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.blue,
@@ -129,6 +129,12 @@ class _RtcVerifyPageState extends State<RtcVerifyPage> {
       onRequestToken: () {
         _log('Token 已过期，正在续期');
         unawaited(_renewToken());
+      },
+      onTokenError: (code, message) {
+        _log('Token 错误 ${code.value} $message');
+      },
+      onNetworkQuality: (uid, tx, rx) {
+        _log('网络 $uid tx=$tx rx=$rx');
       },
       onError: (code, message) {
         _log('错误 $code $message');
@@ -340,7 +346,7 @@ class _RtcVerifyPageState extends State<RtcVerifyPage> {
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A2E),
       appBar: AppBar(
-        title: const Text('SY RTC 验证'),
+        title: Text('SY RTC $kSyRtcFlutterSdkVersion'),
         backgroundColor: const Color(0xFF16213E),
       ),
       body: SafeArea(

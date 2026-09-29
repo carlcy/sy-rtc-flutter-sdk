@@ -2,7 +2,7 @@
 
 [![pub package](https://img.shields.io/pub/v/sy_rtc_flutter_sdk.svg)](https://pub.dev/packages/sy_rtc_flutter_sdk)
 
-**当前版本**: 3.1.2
+**当前版本**: 3.2.0
 
 Flutter 实时音视频插件。Android / iOS 原生能力分别来自 [sy-rtc-android-sdk](https://github.com/carlcy/sy-rtc-android-sdk) 与 [sy-rtc-ios-sdk](https://github.com/carlcy/sy-rtc-ios-sdk)。
 
@@ -12,7 +12,7 @@ Flutter 实时音视频插件。Android / iOS 原生能力分别来自 [sy-rtc-a
 
 ```yaml
 dependencies:
-  sy_rtc_flutter_sdk: ^3.1.2
+  sy_rtc_flutter_sdk: ^3.2.0
 ```
 
 包还没出现在 pub.dev 时，用已经打好的 tag（不要写 `ref: main`）：
@@ -22,7 +22,7 @@ dependencies:
   sy_rtc_flutter_sdk:
     git:
       url: https://github.com/carlcy/sy-rtc-flutter-sdk.git
-      ref: v3.1.2
+      ref: v3.2.0
 ```
 
 本仓库 `example/pubspec.yaml` 里的 `path: ../` 只给插件作者本地联调，不是客户接入方式。
@@ -45,10 +45,10 @@ flutter pub get
 
 #### Android
 
-插件用 `api` 传递这份坐标（JitPack 上已有 `v3.1.0`）：
+插件用 `api` 传递这份坐标（须先在 JitPack 发布 tag `v3.2.0`）：
 
 ```gradle
-implementation 'com.github.carlcy:sy-rtc-android-sdk:v3.1.0'
+implementation 'com.github.carlcy:sy-rtc-android-sdk:v3.2.0'
 ```
 
 业务模块不用再写一遍，但必须能解析 JitPack。在 `android/build.gradle`：
@@ -98,14 +98,14 @@ await Permission.camera.request();
 
 **iOS 原生 SDK 为什么还在插件里，而不是 CocoaPods 坐标：**
 
-目标坐标是 `pod 'SyRtcSDK', '3.1.0'`，源码仓库是 `https://github.com/carlcy/sy-rtc-ios-sdk`（tag `v3.1.0`，也有 SPM 的 `Package.swift`）。CocoaPods 的 `s.dependency` 只能解析 trunk 或 spec 仓库，不能写 git URL。2026-09 查过 trunk，没有名为 `SyRtcSDK` 的 pod。因此插件暂时编译 `ios/SyRtcSDK` 源码，并依赖 `GoogleWebRTC`（源码是 `import WebRTC`）。
+目标坐标是 `pod 'SyRtcSDK', '3.2.0'`，源码仓库是 `https://github.com/carlcy/sy-rtc-ios-sdk`（tag `v3.2.0`，也有 SPM 的 `Package.swift`）。CocoaPods 的 `s.dependency` 只能解析 trunk 或 spec 仓库，不能写 git URL。trunk 上还没有 `SyRtcSDK` 3.2.0。因此插件暂时编译 `ios/SyRtcSDK` 源码，并依赖 `GoogleWebRTC`（源码是 `import WebRTC`）。
 
 Android 已经能按坐标拉取，所以 example 里的本地 AAR / flatDir 已去掉。
 
 维护者把 iOS SDK 推上 trunk 之后，把 `ios/sy_rtc_flutter_sdk.podspec` 改成：
 
 ```ruby
-s.dependency 'SyRtcSDK', '3.1.0'
+s.dependency 'SyRtcSDK', '3.2.0'
 s.dependency 'WebRTC-SDK', '~> 125.6422.07'
 ```
 
@@ -227,6 +227,45 @@ await engine.setQualityTier(SyQualityTier.hd);
 
 原有的 `setVideoQuality` / `setVideoEncoderConfiguration` 不变。4K 预设 `SyVideoQualityPreset.ultraHd()` 在换 Token 时映射到 `fhd`，因为后端没有单独的 4K 档。
 
+也可以一次做完续期和编码：
+
+```dart
+await engine.switchQualityTier(tier: SyQualityTier.hd, token: nextToken);
+```
+
+### 9. 频道属性
+
+用用户 JWT，不要用 AppSecret。
+
+```dart
+room.setAuthToken(userJwt);
+await room.setChannelMeta(channelId: channelId, key: 'title', value: '演示房');
+final meta = await room.getChannelMeta(channelId: channelId);
+await room.deleteChannelMeta(channelId: channelId, key: 'title');
+```
+
+对应 `POST /api/rtc/channel/meta/set|get|delete`，请求头 `Authorization: Bearer <JWT>`。
+
+### 10. Token 业务码
+
+`POST /api/rtc/token` 或引擎 `onError` 返回这些码时，会抛出 `SyTokenException`，并额外回调 `onTokenError`（原来的 `onError` 仍会触发）。
+
+| 码 | 含义 |
+| --- | --- |
+| 4031 | Token 无效 |
+| 4032 | Token 已过期 |
+| 4033 | 权限不足（角色或画质档位不允许） |
+
+### 11. 还没有在原生侧完成的能力
+
+这些 Dart API 已经接上，但当前原生实现不会给出真实结果，插件不会编造：
+
+- **网络质量**：`onNetworkQuality` 已转发。原生回调目前是空的，流里不会出现数据。
+- **音量**：`enableAudioVolumeIndication` 已转发。现有原生实现按间隔回调，音量固定为 0。
+- **设备**：`enumerateRecordingDevices` 等已转发。内置 iOS 只返回占位麦克风。
+- **屏幕共享**：会调用原生 `startScreenCapture`。Android 还没有系统录屏授权弹窗，iOS 的 ReplayKit 帧还没有送进视频轨。
+- **静音查询**：`observedLocalAudioMuted` 只记录本端最近一次 `muteLocalAudio`，不是硬件回读。
+
 ## 示例
 
 ```bash
@@ -248,13 +287,13 @@ flutter run --dart-define=SY_API_BASE=https://your-api.example
 客户要写的那一行是：
 
 ```yaml
-sy_rtc_flutter_sdk: ^3.1.2
+sy_rtc_flutter_sdk: ^3.2.0
 ```
 
 发布前：
 
-1. 确认 Android 坐标还能解析。当前插件依赖的是已经在 JitPack 上的 `com.github.carlcy:sy-rtc-android-sdk:v3.1.0`。原生 SDK 升版本时，改 `android/build.gradle` 里的坐标，打对应 git tag，等 JitPack 构建成功，再发 Flutter 包。
-2. iOS 仍随插件编译源码，直到 `SyRtcSDK` 出现在 CocoaPods trunk。推送步骤在 [sy-rtc-ios-sdk 的发布说明](https://github.com/carlcy/sy-rtc-ios-sdk/blob/main/PUBLISH_GUIDE.md)：`pod trunk register` → `pod lib lint SyRtcSDK.podspec` → `pod trunk push SyRtcSDK.podspec`。trunk 成功后再改本仓库 podspec（见上文），不要提前删掉 `ios/SyRtcSDK`。
+1. 先发布原生 Android tag `v3.2.0`，确认 JitPack 能解析 `com.github.carlcy:sy-rtc-android-sdk:v3.2.0`，再发 Flutter 包。插件已经写成这个坐标。
+2. iOS 目标是 `SyRtcSDK` 3.2.0。trunk 还没有这个 pod，所以插件继续编译内置源码。推送步骤在 [sy-rtc-ios-sdk 的发布说明](https://github.com/carlcy/sy-rtc-ios-sdk/blob/main/PUBLISH_GUIDE.md)：`pod trunk register` → `pod lib lint SyRtcSDK.podspec` → `pod trunk push SyRtcSDK.podspec`。trunk 上出现 3.2.0 后，把 podspec 改成 `s.dependency 'SyRtcSDK', '3.2.0'`，删除 `ios/SyRtcSDK`，并在插件 Swift 里 `import SyRtcSDK`。在那之前不要让客户自己再 `pod 'SyRtcSDK'`。
 3. 对齐版本号：`pubspec.yaml`、`CHANGELOG.md`、`android/build.gradle` 的 `version`、`ios/sy_rtc_flutter_sdk.podspec` 的 `s.version`。CHANGELOG 最上一项必须是这个版本。
 4. 在仓库根目录检查：
 
@@ -272,8 +311,8 @@ dart pub publish
 5. 发布成功后打 tag，供 git 依赖使用（tag 与 pubspec 版本一致，带 `v` 前缀）：
 
 ```bash
-git tag v3.1.2
-git push origin v3.1.2
+git tag v3.2.0
+git push origin v3.2.0
 ```
 
 `dart pub publish` 会带上 `example/`。example 继续使用 `path: ../`，这是 pub.dev 对插件示例的常规写法。

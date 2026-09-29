@@ -122,6 +122,26 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
       } else {
         result(false)
       }
+
+    case "setChannelProfile":
+      if let args = call.arguments as? [String: Any],
+         let profile = args["profile"] as? String {
+        engine?.setChannelProfile(profile)
+        result(true)
+      } else {
+        result(false)
+      }
+
+    case "enableAudioVolumeIndication":
+      if let args = call.arguments as? [String: Any] {
+        let interval = args["interval"] as? Int ?? 200
+        let smooth = args["smooth"] as? Int ?? 3
+        let reportVad = args["reportVad"] as? Bool ?? false
+        engine?.enableAudioVolumeIndication(interval: interval, smooth: smooth, reportVad: reportVad)
+        result(true)
+      } else {
+        result(false)
+      }
       
     case "setVideoEncoderConfiguration":
       if let args = call.arguments as? [String: Any] {
@@ -687,6 +707,89 @@ extension SyRtcFlutterSdkPlugin: SyRtcEventHandler {
 
   public func onServerMuteAudio(uid: String, muted: Bool) {
     eventChannel?.invokeMethod("onServerMuteAudio", arguments: ["uid": uid, "muted": muted])
+  }
+
+  public func onUserMuteAudio(uid: String, muted: Bool) {
+    eventChannel?.invokeMethod("onUserMuteAudio", arguments: ["uid": uid, "muted": muted])
+  }
+
+  public func onNetworkQuality(uid: String, txQuality: String, rxQuality: String) {
+    eventChannel?.invokeMethod("onNetworkQuality", arguments: [
+      "uid": uid,
+      "txQuality": txQuality,
+      "rxQuality": rxQuality
+    ])
+  }
+
+  public func onTokenPrivilegeWillExpire() {
+    eventChannel?.invokeMethod("onTokenPrivilegeWillExpire", arguments: nil)
+  }
+
+  public func onRequestToken() {
+    eventChannel?.invokeMethod("onRequestToken", arguments: nil)
+  }
+
+  public func onJoinChannelSuccess(channelId: String, uid: String, elapsed: Int) {
+    eventChannel?.invokeMethod("onJoinChannelSuccess", arguments: [
+      "channelId": channelId,
+      "uid": uid,
+      "elapsed": elapsed
+    ])
+  }
+
+  public func onLeaveChannel(stats: [String: Any]) {
+    eventChannel?.invokeMethod("onLeaveChannel", arguments: ["stats": stats])
+  }
+
+  public func onRejoinChannelSuccess(channelId: String, uid: String, elapsed: Int) {
+    eventChannel?.invokeMethod("onRejoinChannelSuccess", arguments: [
+      "channelId": channelId,
+      "uid": uid,
+      "elapsed": elapsed
+    ])
+  }
+
+  public func onConnectionStateChanged(state: String, reason: String) {
+    eventChannel?.invokeMethod("onConnectionStateChanged", arguments: [
+      "state": state,
+      "reason": reason
+    ])
+  }
+
+  public func onLocalAudioStateChanged(state: String, error: String) {
+    eventChannel?.invokeMethod("onLocalAudioStateChanged", arguments: [
+      "state": state,
+      "error": error
+    ])
+  }
+
+  public func onRemoteAudioStateChanged(uid: String, state: String, reason: String, elapsed: Int) {
+    eventChannel?.invokeMethod("onRemoteAudioStateChanged", arguments: [
+      "uid": uid,
+      "state": state,
+      "reason": reason,
+      "elapsed": elapsed
+    ])
+  }
+
+  public func onLocalVideoStateChanged(state: String, error: String) {
+    eventChannel?.invokeMethod("onLocalVideoStateChanged", arguments: [
+      "state": state,
+      "error": error
+    ])
+  }
+
+  public func onRemoteVideoStateChanged(uid: String, state: String, reason: String, elapsed: Int) {
+    eventChannel?.invokeMethod("onRemoteVideoStateChanged", arguments: [
+      "uid": uid,
+      "state": state,
+      "reason": reason,
+      "elapsed": elapsed
+    ])
+  }
+
+  public func onAudioRoutingChanged(routing: Int) {
+    eventChannel?.invokeMethod("onAudioRoutingChanged", arguments: ["routing": routing])
   }
   
   public func onVolumeIndication(speakers: [SyVolumeInfo]) {

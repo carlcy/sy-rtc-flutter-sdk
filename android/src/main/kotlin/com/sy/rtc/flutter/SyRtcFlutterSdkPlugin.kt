@@ -153,6 +153,18 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
         engine?.setClientRole(role)
         result.success(true)
       }
+      "setChannelProfile" -> {
+        val profile = call.argument<String>("profile") ?: "communication"
+        engine?.setChannelProfile(profile)
+        result.success(true)
+      }
+      "enableAudioVolumeIndication" -> {
+        val interval = call.argument<Int>("interval") ?: 200
+        val smooth = call.argument<Int>("smooth") ?: 3
+        val reportVad = call.argument<Boolean>("reportVad") ?: false
+        engine?.enableAudioVolumeIndication(interval, smooth, reportVad)
+        result.success(true)
+      }
       "setVideoEncoderConfiguration" -> {
         val args = call.arguments as? Map<*, *>
         if (args != null) {
@@ -563,6 +575,68 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
 
       override fun onServerMuteAudio(uid: String, muted: Boolean) {
         invokeOnMain("onServerMuteAudio", mapOf("uid" to uid, "muted" to muted))
+      }
+
+      override fun onUserMuteAudio(uid: String, muted: Boolean) {
+        invokeOnMain("onUserMuteAudio", mapOf("uid" to uid, "muted" to muted))
+      }
+
+      override fun onNetworkQuality(uid: String, txQuality: String, rxQuality: String) {
+        invokeOnMain("onNetworkQuality", mapOf(
+          "uid" to uid,
+          "txQuality" to txQuality,
+          "rxQuality" to rxQuality
+        ))
+      }
+
+      override fun onTokenPrivilegeWillExpire() {
+        invokeOnMain("onTokenPrivilegeWillExpire", null)
+      }
+
+      override fun onRequestToken() {
+        invokeOnMain("onRequestToken", null)
+      }
+
+      override fun onRejoinChannelSuccess(channelId: String, uid: String, elapsed: Int) {
+        invokeOnMain("onRejoinChannelSuccess", mapOf(
+          "channelId" to channelId,
+          "uid" to uid,
+          "elapsed" to elapsed
+        ))
+      }
+
+      override fun onRtcStats(stats: Map<String, Any?>) {
+        invokeOnMain("onRtcStats", mapOf("stats" to stats))
+      }
+
+      override fun onLocalAudioStateChanged(state: String, error: String) {
+        invokeOnMain("onLocalAudioStateChanged", mapOf("state" to state, "error" to error))
+      }
+
+      override fun onRemoteAudioStateChanged(uid: String, state: String, reason: String, elapsed: Int) {
+        invokeOnMain("onRemoteAudioStateChanged", mapOf(
+          "uid" to uid,
+          "state" to state,
+          "reason" to reason,
+          "elapsed" to elapsed
+        ))
+      }
+
+      override fun onLocalVideoStateChanged(state: String, error: String) {
+        invokeOnMain("onLocalVideoStateChanged", mapOf("state" to state, "error" to error))
+      }
+
+      override fun onRemoteVideoStateChanged(uid: String, state: String, reason: String, elapsed: Int) {
+        invokeOnMain("onRemoteVideoStateChanged", mapOf(
+          "uid" to uid,
+          "state" to state,
+          "reason" to reason,
+          "elapsed" to elapsed
+        ))
+      }
+
+      override fun onAudioRoutingChanged(routing: Int) {
+        invokeOnMain("onAudioRoutingChanged", mapOf("routing" to routing))
       }
 
       override fun onVolumeIndication(speakers: List<VolumeInfo>) {

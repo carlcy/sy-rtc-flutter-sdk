@@ -3,7 +3,7 @@
 // @formatter:on
 
 group = "com.sy.rtc.flutter"
-version = "3.1.2"
+version = "3.2.0"
 
 buildscript {
     ext.kotlin_version = "2.0.21"
@@ -66,11 +66,11 @@ android {
 }
 
 dependencies {
-    // 原生 Android RTC SDK，按 Maven 坐标从 JitPack 拉取（已发布 tag v3.1.0）。
-    // https://jitpack.io/#carlcy/sy-rtc-android-sdk/v3.1.0
+    // 与插件 3.2.0 对齐。发布前维护者必须先把该 tag 推到 JitPack。
+    // https://jitpack.io/#carlcy/sy-rtc-android-sdk/v3.2.0
     // api：依赖会传递给宿主 App，业务工程不必再声明这份坐标，
     // 但宿主必须能解析 https://jitpack.io （见 README「平台配置」）。
-    api("com.github.carlcy:sy-rtc-android-sdk:v3.1.0")
+    api("com.github.carlcy:sy-rtc-android-sdk:v3.2.0")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")

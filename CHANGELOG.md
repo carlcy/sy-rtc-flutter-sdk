@@ -1,3 +1,11 @@
+## 3.2.0
+
+- 插件、example、文档中的版本统一为 3.2.0。客户写 `sy_rtc_flutter_sdk: ^3.2.0`。
+- Android 坐标改为 `com.github.carlcy:sy-rtc-android-sdk:v3.2.0`。iOS 目标为 `SyRtcSDK 3.2.0`；CocoaPods trunk 还没有该 pod，插件继续编译内置源码。
+- 补齐方法通道：`setChannelProfile`、`enableAudioVolumeIndication`，并转发网络质量、静音、Token、音视频状态回调。
+- 新增频道属性 `POST /api/rtc/channel/meta/set|get|delete`（用户 JWT）、`switchQualityTier`，以及 Token 业务码 4031/4032/4033。
+- 音量真实采集、网络质量上报、屏幕帧进轨、设备列表回读在原生侧尚未完成，Dart 只转发或记录本端调用，不编造结果。
+
 ## 3.1.2
 
 - 客户接入改为在 `pubspec.yaml` 写 `sy_rtc_flutter_sdk: ^3.1.2`（或 git `ref: v3.1.2`）。example 仍用 `path: ../` 做本地联调。

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'sy_rtc_events.dart';
 import 'sy_rtc_video_quality.dart';
 
 /// 房间信息
@@ -263,6 +264,9 @@ class SyRoomService {
     );
     final code = result['code'] as int? ?? -1;
     if (code != 0) {
+      final tokenError =
+          SyTokenException.tryFromCode(code, result['msg']?.toString());
+      if (tokenError != null) throw tokenError;
       throw Exception(result['msg'] ?? '获取 Token 失败');
     }
     final data = result['data'];
@@ -324,5 +328,76 @@ class SyRoomService {
           .toList();
     }
     return const [];
+  }
+
+  void _requireUserJwt() {
+    if (_authToken == null || _authToken!.isEmpty) {
+      throw StateError('频道属性需要用户 JWT，请先 setAuthToken');
+    }
+  }
+
+  Future<Map<String, dynamic>> _postChannelMeta(
+    String action,
+    Map<String, dynamic> body,
+  ) async {
+    _requireUserJwt();
+    final result = await _httpRequest(
+      'POST',
+      '/api/rtc/channel/meta/$action',
+      body: body,
+    );
+    final code = result['code'] as int? ?? -1;
+    if (code != 0) {
+      final tokenError =
+          SyTokenException.tryFromCode(code, result['msg']?.toString());
+      if (tokenError != null) throw tokenError;
+      throw Exception(result['msg'] ?? '频道属性 $action 失败');
+    }
+    final data = result['data'];
+    if (data is Map) return Map<String, dynamic>.from(data);
+    return <String, dynamic>{'data': data};
+  }
+
+  /// 设置频道属性。
+  ///
+  /// `POST /api/rtc/channel/meta/set`
+  /// Header：`Authorization: Bearer <用户 JWT>`（先 [setAuthToken]）。
+  /// Body：`channelId`、`key`、`value`。
+  Future<void> setChannelMeta({
+    required String channelId,
+    required String key,
+    required Object? value,
+  }) async {
+    await _postChannelMeta('set', {
+      'channelId': channelId,
+      'key': key,
+      'value': value,
+    });
+  }
+
+  /// 读取频道属性。
+  ///
+  /// `POST /api/rtc/channel/meta/get`
+  /// [key] 为空时由服务端返回该频道的全部属性。
+  Future<Map<String, dynamic>> getChannelMeta({
+    required String channelId,
+    String? key,
+  }) {
+    final body = <String, dynamic>{'channelId': channelId};
+    if (key != null && key.isNotEmpty) body['key'] = key;
+    return _postChannelMeta('get', body);
+  }
+
+  /// 删除频道属性。
+  ///
+  /// `POST /api/rtc/channel/meta/delete`
+  Future<void> deleteChannelMeta({
+    required String channelId,
+    required String key,
+  }) async {
+    await _postChannelMeta('delete', {
+      'channelId': channelId,
+      'key': key,
+    });
   }
 }

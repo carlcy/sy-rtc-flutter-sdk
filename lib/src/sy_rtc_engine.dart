@@ -28,6 +28,18 @@ class SyRtcEngine {
   final StreamController<SyRtcEvent> _eventController =
       StreamController<SyRtcEvent>.broadcast();
 
+  /// 最近一次成功的 [muteLocalAudio]。不是硬件回读。
+  bool? _observedLocalAudioMuted;
+
+  /// 最近一次成功的 [muteLocalVideoStream]。不是硬件回读。
+  bool? _observedLocalVideoMuted;
+
+  /// 本端是否已调用 [startScreenCapture] 且尚未 [stopScreenCapture]。
+  bool _screenCaptureRequested = false;
+
+  final Map<String, bool> _remoteAudioMuted = {};
+  final Map<String, bool> _serverAudioMuted = {};
+
   factory SyRtcEngine() => _instance;
 
   SyRtcEngine._internal() {
@@ -141,7 +153,20 @@ class SyRtcEngine {
   /// [muted] true为静音，false为取消静音
   Future<void> muteLocalAudio(bool muted) async {
     await _channel.invokeMethod('muteLocalAudio', {'muted': muted});
+    _observedLocalAudioMuted = muted;
   }
+
+  /// 最近一次成功调用 [muteLocalAudio] 的结果。
+  ///
+  /// TODO: 原生 SDK 还没有 `isLocalAudioMuted` 查询。这里不是麦克风硬件回读，
+  /// 服务端静音也不会改这个值，请同时听 [onServerMuteAudio]。
+  bool? get observedLocalAudioMuted => _observedLocalAudioMuted;
+
+  /// 最近一次 [onUserMuteAudio] 里该用户的静音标志。原生尚未回调时为 null。
+  bool? remoteAudioMuted(String uid) => _remoteAudioMuted[uid];
+
+  /// 最近一次 [onServerMuteAudio] 里该用户的静音标志。原生尚未回调时为 null。
+  bool? serverAudioMuted(String uid) => _serverAudioMuted[uid];
 
   /// 发送频道消息（广播给频道内所有用户）
   ///
@@ -171,6 +196,9 @@ class SyRtcEngine {
   /// [interval] 回调间隔（毫秒），建议 200ms。设为 0 禁用。
   /// [smooth] 平滑系数，建议 3
   /// [reportVad] 是否报告本地用户的人声检测，默认 false
+  ///
+  /// TODO: 现有原生实现会按间隔回调，但音量固定为 0，还没有真实音量采集。
+  /// 插件只转发原生回调，不填假音量。
   Future<void> enableAudioVolumeIndication({
     int interval = 200,
     int smooth = 3,
@@ -249,7 +277,10 @@ class SyRtcEngine {
         .cast<SyConnectionStateChangedEvent>();
   }
 
-  /// 网络质量事件流
+  /// 网络质量事件流。
+  ///
+  /// TODO: 原生 `onNetworkQuality` 目前是空回调，引擎还不会上报上下行质量。
+  /// 插件已转发该事件；在原生开始调用之前，这个流不会有数据。
   Stream<SyNetworkQualityEvent> get onNetworkQuality {
     return _eventController.stream
         .where((event) => event is SyNetworkQualityEvent)
@@ -558,6 +589,18 @@ class SyRtcEngine {
     }
   }
 
+  /// 切换画质档位：先保存新 Token，再改本地编码。
+  ///
+  /// [token] 必须由业务服务器按同一个 [tier] 重新签发
+  /// （`POST /api/rtc/token?qualityTier=`）。本方法不会自己请求服务器。
+  Future<void> switchQualityTier({
+    required SyQualityTier tier,
+    required String token,
+  }) async {
+    await renewToken(token);
+    await setQualityTier(tier);
+  }
+
   /// 设置音频质量等级
   ///
   /// [quality] 音频质量等级（低/中/高/超高）
@@ -617,7 +660,13 @@ class SyRtcEngine {
   /// 静音本地视频
   Future<void> muteLocalVideoStream(bool muted) async {
     await _channel.invokeMethod('muteLocalVideoStream', {'muted': muted});
+    _observedLocalVideoMuted = muted;
   }
+
+  /// 最近一次成功调用 [muteLocalVideoStream] 的结果。
+  ///
+  /// TODO: 原生 SDK 还没有本地视频静音查询接口，这里不是采集状态回读。
+  bool? get observedLocalVideoMuted => _observedLocalVideoMuted;
 
   /// 静音远端视频
   Future<void> muteRemoteVideoStream(String uid, bool muted) async {
@@ -657,7 +706,11 @@ class SyRtcEngine {
 
   // ==================== 屏幕共享 ====================
 
-  /// 开始屏幕共享（需要 rtc 产品权限）
+  /// 开始屏幕共享（需要 rtc 产品权限）。
+  ///
+  /// TODO: Android 依赖 MediaProjection 授权，当前原生实现没有弹出系统授权；
+  /// iOS 会启动 ReplayKit，但还没有把采集帧送进 WebRTC 视频轨。
+  /// 调用成功只表示原生方法已执行，不表示观众已经能看到屏幕。
   Future<void> startScreenCapture(SyScreenCaptureConfiguration config) async {
     final hasRtc = await hasRtcFeature();
     if (!hasRtc) {
@@ -671,11 +724,18 @@ class SyRtcEngine {
       'width': config.width,
       'height': config.height,
     });
+    _screenCaptureRequested = true;
   }
+
+  /// 本端是否调用过 [startScreenCapture] 且尚未 [stopScreenCapture]。
+  ///
+  /// TODO: 不是原生采集状态。授权失败或 ReplayKit 失败时，这个值仍可能为 true。
+  bool get screenCaptureRequested => _screenCaptureRequested;
 
   /// 停止屏幕共享
   Future<void> stopScreenCapture() async {
     await _channel.invokeMethod('stopScreenCapture');
+    _screenCaptureRequested = false;
   }
 
   /// 更新屏幕共享配置
@@ -903,6 +963,7 @@ class SyRtcEngine {
         case 'onUserMuteAudio':
           final uid = call.arguments['uid'] as String? ?? '';
           final muted = call.arguments['muted'] as bool? ?? false;
+          if (uid.isNotEmpty) _remoteAudioMuted[uid] = muted;
           final event = SyUserMuteAudioEvent(uid: uid, muted: muted);
           _eventController.add(event);
           _eventHandler?.onUserMuteAudio?.call(uid, muted);
@@ -917,6 +978,7 @@ class SyRtcEngine {
         case 'onServerMuteAudio':
           final uid = call.arguments['uid'] as String? ?? '';
           final muted = call.arguments['muted'] as bool? ?? false;
+          if (uid.isNotEmpty) _serverAudioMuted[uid] = muted;
           final event = SyServerMuteAudioEvent(uid: uid, muted: muted);
           _eventController.add(event);
           _eventHandler?.onServerMuteAudio?.call(uid, muted);
@@ -1124,6 +1186,13 @@ class SyRtcEngine {
         case 'onError':
           final errCode = call.arguments['errCode'] as int? ?? 0;
           final errMsg = call.arguments['errMsg'] as String? ?? 'Unknown error';
+          final tokenCode = SyTokenBusinessCode.tryParse(errCode);
+          if (tokenCode != null) {
+            final tokenEvent =
+                SyTokenErrorEvent(code: tokenCode, message: errMsg);
+            _eventController.add(tokenEvent);
+            _eventHandler?.onTokenError?.call(tokenCode, errMsg);
+          }
           final event = SyErrorEvent(errCode: errCode, errMsg: errMsg);
           _eventController.add(event);
           _eventHandler?.onError?.call(errCode, errMsg);

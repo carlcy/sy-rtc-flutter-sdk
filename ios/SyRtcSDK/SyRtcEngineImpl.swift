@@ -464,6 +464,7 @@ internal class SyRtcEngineImpl {
     private var volumeIndicationTimer: Timer?
 
     func enableAudioVolumeIndication(interval: Int, smooth: Int, reportVad: Bool) {
+        // TODO(native-3.2.0): 这里还没有真实音量采集，回调音量固定为 0。
         print("音量提示: interval=\(interval), smooth=\(smooth), reportVad=\(reportVad)")
         volumeIndicationTimer?.invalidate()
         volumeIndicationTimer = nil
@@ -700,6 +701,7 @@ internal class SyRtcEngineImpl {
     // MARK: - 音频设备管理
     
     func enumerateRecordingDevices() -> [AudioDeviceInfo] {
+        // TODO(native-3.2.0): 尚未读取 AVAudioSession 的真实输入设备，只返回占位项。
         return [AudioDeviceInfo(deviceId: "default", deviceName: "默认麦克风")]
     }
     
@@ -1018,6 +1020,7 @@ internal class SyRtcEngineImpl {
     // MARK: - 屏幕共享
     
     func startScreenCapture(_ config: ScreenCaptureConfiguration) {
+        // TODO(native-3.2.0): ReplayKit 已启动，但采集帧还没有送进 WebRTC 视频轨。
         if isScreenCapturing {
             print("屏幕共享已在进行中")
             return

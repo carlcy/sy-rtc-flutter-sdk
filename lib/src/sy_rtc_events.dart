@@ -354,6 +354,67 @@ class SyErrorEvent extends SyRtcEvent {
       : super('error');
 }
 
+/// 业务后端约定的 Token 错误码。
+///
+/// 出现在 `POST /api/rtc/token` 的 `code`，以及信令/引擎 `onError` 的错误码。
+/// 展示给用户时优先用服务端 `msg`；下面的说明只用于客户端分支。
+enum SyTokenBusinessCode {
+  /// 4031 Token 无效（签名错误或格式不对）。
+  invalid(4031),
+
+  /// 4032 Token 已过期。
+  expired(4032),
+
+  /// 4033 Token 权限不足（角色或画质档位不被允许）。
+  privilegeDenied(4033);
+
+  final int value;
+
+  const SyTokenBusinessCode(this.value);
+
+  static SyTokenBusinessCode? tryParse(int? code) {
+    switch (code) {
+      case 4031:
+        return SyTokenBusinessCode.invalid;
+      case 4032:
+        return SyTokenBusinessCode.expired;
+      case 4033:
+        return SyTokenBusinessCode.privilegeDenied;
+      default:
+        return null;
+    }
+  }
+}
+
+/// Token 业务错误。仍然是 [Exception]，旧的 `on Exception` 可以接住。
+class SyTokenException implements Exception {
+  SyTokenException(this.code, this.message);
+
+  final SyTokenBusinessCode code;
+  final String message;
+
+  int get businessCode => code.value;
+
+  static SyTokenException? tryFromCode(int? code, String? message) {
+    final parsed = SyTokenBusinessCode.tryParse(code);
+    if (parsed == null) return null;
+    final msg = (message == null || message.isEmpty) ? parsed.name : message;
+    return SyTokenException(parsed, msg);
+  }
+
+  @override
+  String toString() => 'SyTokenException($businessCode): $message';
+}
+
+/// Token 业务错误事件。在通用 [SyErrorEvent] 之外再发一次，方便按码分支。
+class SyTokenErrorEvent extends SyRtcEvent {
+  SyTokenErrorEvent({required this.code, required this.message})
+      : super('tokenError');
+
+  final SyTokenBusinessCode code;
+  final String message;
+}
+
 /// 连接状态枚举
 enum SyConnectionState {
   disconnected,  // 断开连接

@@ -38,6 +38,11 @@ class SyRtcEventHandler {
   /// Token 已过期回调
   final void Function()? onRequestToken;
 
+  /// 业务码 4031 / 4032 / 4033。
+  ///
+  /// 与 [onError] 同时触发，不替换它。
+  final void Function(SyTokenBusinessCode code, String message)? onTokenError;
+
   /// 音量指示回调
   final void Function(List<Map<String, dynamic>> speakers)? onVolumeIndication;
 
@@ -118,6 +123,7 @@ class SyRtcEventHandler {
     this.onRtcStats,
     this.onTokenPrivilegeWillExpire,
     this.onRequestToken,
+    this.onTokenError,
     this.onVolumeIndication,
     this.onUserMuteAudio,
     this.onLocalAudioStateChanged,
