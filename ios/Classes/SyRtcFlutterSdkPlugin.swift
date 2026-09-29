@@ -411,20 +411,20 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
       }
 
     case "startScreenCapture":
-      if let args = call.arguments as? [String: Any] {
-        let config = ScreenCaptureConfiguration(
-          captureMouseCursor: args["captureMouseCursor"] as? Bool ?? true,
-          captureWindow: args["captureWindow"] as? Bool ?? false,
-          frameRate: args["frameRate"] as? Int ?? 15,
-          bitrate: args["bitrate"] as? Int ?? 0,
-          width: args["width"] as? Int ?? 0,
-          height: args["height"] as? Int ?? 0
-        )
-        engine?.startScreenCapture(config)
-        result(true)
-      } else {
-        result(false)
+      guard let engine = engine, let args = call.arguments as? [String: Any] else {
+        result(-1)
+        break
       }
+      let config = ScreenCaptureConfiguration(
+        captureMouseCursor: args["captureMouseCursor"] as? Bool ?? true,
+        captureWindow: args["captureWindow"] as? Bool ?? false,
+        frameRate: args["frameRate"] as? Int ?? 15,
+        bitrate: args["bitrate"] as? Int ?? 0,
+        width: args["width"] as? Int ?? 0,
+        height: args["height"] as? Int ?? 0
+      )
+      engine.startScreenCapture(config)
+      result(0)
 
     case "stopScreenCapture":
       engine?.stopScreenCapture()
@@ -615,6 +615,81 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
         result(false)
       }
       
+    case "isLocalAudioMuted":
+      result(engine?.isLocalAudioMuted() ?? false)
+
+    case "isLocalVideoMuted":
+      result(engine?.isLocalVideoMuted() ?? false)
+
+    case "isRemoteAudioMuted", "isRemoteVideoMuted":
+      result(nil)
+
+    case "getAudioRoute":
+      let routing = engine?.getAudioRoute().rawValue ?? SyRtcAudioRoute.unknown.rawValue
+      result(["routing": routing, "route": Self.audioRouteName(routing)])
+
+    case "setAudioRoute":
+      guard let engine = engine, let route = (call.arguments as? [String: Any])?["route"] as? String else {
+        result(-1)
+        break
+      }
+      switch route {
+      case "speaker":
+        engine.setAudioRoute(.speaker)
+        result(0)
+      case "earpiece":
+        engine.setAudioRoute(.earpiece)
+        result(0)
+      default:
+        result(-1)
+      }
+
+    case "switchCamera":
+      guard let engine = engine else {
+        result(-1)
+        break
+      }
+      engine.switchCamera()
+      result(0)
+
+    case "useFrontCamera":
+      guard let engine = engine, let front = (call.arguments as? [String: Any])?["front"] as? Bool else {
+        result(-1)
+        break
+      }
+      engine.useFrontCamera(front)
+      result(0)
+
+    case "enableCustomVideoCapture":
+      guard let engine = engine, let enabled = (call.arguments as? [String: Any])?["enabled"] as? Bool else {
+        result(-1)
+        break
+      }
+      engine.enableCustomVideoCapture(enabled)
+      result(0)
+
+    case "setStreamExtraInfo":
+      guard let engine = engine, let extra = (call.arguments as? [String: Any])?["extra"] as? String else {
+        result(-1)
+        break
+      }
+      engine.setStreamExtraInfo(extra)
+      result(0)
+
+    case "getStreamExtraInfo":
+      result(engine?.getStreamExtraInfo())
+
+    case "sendSei":
+      result(-2)
+
+    case "setQualityTier":
+      guard let engine = engine, let tier = (call.arguments as? [String: Any])?["tier"] as? String else {
+        result(-1)
+        break
+      }
+      engine.setQualityTier(tier)
+      result(0)
+
     case "release":
       engine?.release()
       engine = nil
@@ -789,12 +864,33 @@ extension SyRtcFlutterSdkPlugin: SyRtcEventHandler {
   }
 
   public func onAudioRoutingChanged(routing: Int) {
-    eventChannel?.invokeMethod("onAudioRoutingChanged", arguments: ["routing": routing])
+    eventChannel?.invokeMethod("onAudioRoutingChanged", arguments: [
+      "routing": routing,
+      "route": Self.audioRouteName(routing)
+    ])
   }
   
   public func onVolumeIndication(speakers: [SyVolumeInfo]) {
-    let speakersList = speakers.map { ["uid": $0.uid, "volume": $0.volume] }
+    let speakersList = speakers.map { ["uid": $0.uid, "volume": $0.volume, "vad": $0.vad] }
     eventChannel?.invokeMethod("onVolumeIndication", arguments: ["speakers": speakersList])
+  }
+
+  public func onUserMuteVideo(uid: String, muted: Bool) {
+    eventChannel?.invokeMethod("onUserMuteVideo", arguments: ["uid": uid, "muted": muted])
+  }
+
+  public func onStreamExtraInfoUpdated(uid: String, extraInfo: String) {
+    eventChannel?.invokeMethod("onStreamExtraInfoUpdated", arguments: ["uid": uid, "extra": extraInfo])
+  }
+
+  private static func audioRouteName(_ routing: Int) -> String {
+    switch routing {
+    case SyRtcAudioRoute.headset.rawValue: return "headset"
+    case SyRtcAudioRoute.earpiece.rawValue: return "earpiece"
+    case SyRtcAudioRoute.speaker.rawValue: return "speaker"
+    case SyRtcAudioRoute.bluetooth.rawValue: return "bluetooth"
+    default: return "unknown"
+    }
   }
 
   public func onError(code: Int, message: String) {

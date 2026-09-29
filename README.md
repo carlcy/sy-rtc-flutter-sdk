@@ -98,7 +98,7 @@ await Permission.camera.request();
 
 **iOS 原生 SDK 为什么还在插件里，而不是 CocoaPods 坐标：**
 
-目标坐标是 `pod 'SyRtcSDK', '3.2.0'`，源码仓库是 `https://github.com/carlcy/sy-rtc-ios-sdk`（tag `v3.2.0`，也有 SPM 的 `Package.swift`）。CocoaPods 的 `s.dependency` 只能解析 trunk 或 spec 仓库，不能写 git URL。trunk 上还没有 `SyRtcSDK` 3.2.0。因此插件暂时编译 `ios/SyRtcSDK` 源码，并依赖 `GoogleWebRTC`（源码是 `import WebRTC`）。
+目标坐标是 `pod 'SyRtcSDK', '3.2.0'`，源码仓库是 `https://github.com/carlcy/sy-rtc-ios-sdk`（tag `v3.2.0`，也有 SPM 的 `Package.swift`）。CocoaPods 的 `s.dependency` 只能解析 trunk 或 spec 仓库，不能写 git URL。trunk 上还没有 `SyRtcSDK` 3.2.0。因此插件编译 `ios/SyRtcSDK` 源码（与分支 `cursor/versioned-spm-cocoapods-3ccc` 对齐，采集设备列表改为系统输入口）。WebRTC 使用 `WebRTC-SDK` `125.6422.07`，和 iOS SDK 同一份二进制；源码仍是 `import WebRTC`。
 
 Android 已经能按坐标拉取，所以 example 里的本地 AAR / flatDir 已去掉。
 
@@ -256,15 +256,34 @@ await room.deleteChannelMeta(channelId: channelId, key: 'title');
 | 4032 | Token 已过期 |
 | 4033 | 权限不足（角色或画质档位不允许） |
 
-### 11. 还没有在原生侧完成的能力
+### 11. 已接通的原生能力
 
-这些 Dart API 已经接上，但当前原生实现不会给出真实结果，插件不会编造：
+音量、网络质量、路由、摄像头、屏幕共享、静音、数据流和重连都转到当前原生实现。两端算法和接口并不相同，下面是实际行为。
 
-- **网络质量**：`onNetworkQuality` 已转发。原生回调目前是空的，流里不会出现数据。
-- **音量**：`enableAudioVolumeIndication` 已转发。现有原生实现按间隔回调，音量固定为 0。
-- **设备**：`enumerateRecordingDevices` 等已转发。内置 iOS 只返回占位麦克风。
-- **屏幕共享**：会调用原生 `startScreenCapture`。Android 还没有系统录屏授权弹窗，iOS 的 ReplayKit 帧还没有送进视频轨。
-- **静音查询**：`observedLocalAudioMuted` 只记录本端最近一次 `muteLocalAudio`，不是硬件回读。
+**音量。** `enableAudioVolumeIndication` 之后，`onVolumeIndication` 里的 `volume` 两端都是 0–255。Android 用 PCM RMS；本地用户的 `uid` 是 `local`。iOS 把 WebRTC `audioLevel`（0–1）乘 255；本地 `uid` 是进房时的 uid。没有统计样本时音量是 0。`vad` 只在 iOS 且 `reportVad: true`、能量大于 0.02 时为 1；Android 没有人声检测，`vad` 为 0。
+
+**网络质量。** `onNetworkQuality` 由本机 RTT 和丢包算出。没有样本时是 `unknown`，插件不会把它填成 excellent。一次回调里的上下行用的是同一组统计。档位名字不互相改写：
+
+| 平台 | 档位（从差到好） | 阈值 |
+| --- | --- | --- |
+| Android | `die` / `bad` / `medium` / `good` / `excellent` | 丢包按 0–100。`die`：≥30% 或 RTT ≥1000ms；`bad`：≥15% 或 ≥500ms；`medium`：≥8% 或 ≥300ms；`good`：≥3% 或 ≥150ms |
+| iOS | `down` / `bad` / `poor` / `good` / `excellent` | 丢包按 0–1。`down`：≥0.5 或 RTT ≥2000ms；`bad`：≥0.2 或 ≥600ms；`poor`：≥0.08 或 ≥250ms；`good`：≥0.02 或 ≥100ms |
+
+**音频路由。** 请用 `SyAudioRoute` 和 `onAudioRoute`。`setAudioRoute` 两端都只能切 `speaker` 和 `earpiece`，返回 0。耳机和蓝牙返回 -1。Android 会在设备接上且没强制扬声器时上报 `headset` / `bluetooth`。iOS 的蓝牙和有线耳机只上报，主动设置会再回调 `onError` 1004。事件里的 `routing` 仍是原生整数，不要混用：Android 0 扬声器、1 耳机、2 蓝牙、3 听筒；iOS 0 耳机、1 听筒、3 扬声器、5 蓝牙、-1 未知。
+
+**设备与摄像头。** Android 采集/播放设备来自 `AudioManager`。iOS 采集设备来自 `AVAudioSession.availableInputs`，没有输入口时是空列表。iOS 播放设备只有 `speaker` 和 `earpiece`。`switchCamera` 两端都有。`useFrontCamera` 只在 iOS 生效，Android 返回 -2。
+
+**屏幕共享。** Android 先弹出 MediaProjection 授权，同意后帧进本地视频轨；返回 0 表示已启动，-1 表示拒绝或失败。SDK 没有 `mediaProjection` 前台服务，Android 10 及以上可能还要宿主自己声明。iOS 是应用内 ReplayKit，帧进 WebRTC；返回 0 只表示调用已发出，失败走 `onError` 1008。这不是跨进程的 Broadcast Extension。
+
+**静音。** `isLocalAudioMuted` / `isLocalVideoMuted` 读原生状态。`isRemoteAudioMuted` / `isRemoteVideoMuted` 只在 Android 有结果，iOS 返回 null。iOS 另有 `onUserMuteVideo`；Android 的远端视频静音走 `onRemoteVideoStateChanged`。
+
+**数据与附加信息。** `createDataStream` / `sendStreamMessage` 两端都走 DataChannel。`sendSei` 只在 Android 存在：DataChannel 消息，带 `SYSEI` 前缀，不是码流 SEI；iOS 返回 -2。`setStreamExtraInfo` 走频道信令。Android 未进房返回 -1；iOS 没有返回值，插件在引擎存在时返回 0。`getStreamExtraInfo` 只在 iOS 有值，Android 返回 null。
+
+**自定义采集。** `enableCustomVideoCapture(true)` 会停掉摄像头。送帧仍是原生类型：Android `org.webrtc.VideoFrame`，iOS `CVPixelBuffer`。方法通道不接收像素，避免假装帧已经进编码器。美颜提亮仍用 `setBeautyEffectOptions`。自定义帧处理器同样是原生钩子，不会把帧回调到 Dart。
+
+**重连。** 听 `onConnectionStateChanged` 的 `nativeReason`，以及 `onRejoinChannelSuccess`。Android 信令最多再试 3 次，用尽后 `onError` 1003；ICE 会 `restartIce`，恢复后重进房回调。iOS 信令按 1、2、4、8、16 秒退避，最多 5 次，用尽后 `nativeReason` 为 `signaling_give_up`，`onError` 1005。
+
+**网络类型。** `getNetworkType` 在 iOS 上可能是 `wifi`、`cellular`、`ethernet`、`none`、`unknown`（进房后才开始监视）。Android 3.2.0 的同名方法固定返回 `unknown`。
 
 ## 示例
 
@@ -293,7 +312,7 @@ sy_rtc_flutter_sdk: ^3.2.0
 发布前：
 
 1. 先发布原生 Android tag `v3.2.0`，确认 JitPack 能解析 `com.github.carlcy:sy-rtc-android-sdk:v3.2.0`，再发 Flutter 包。插件已经写成这个坐标。
-2. iOS 目标是 `SyRtcSDK` 3.2.0。trunk 还没有这个 pod，所以插件继续编译内置源码。推送步骤在 [sy-rtc-ios-sdk 的发布说明](https://github.com/carlcy/sy-rtc-ios-sdk/blob/main/PUBLISH_GUIDE.md)：`pod trunk register` → `pod lib lint SyRtcSDK.podspec` → `pod trunk push SyRtcSDK.podspec`。trunk 上出现 3.2.0 后，把 podspec 改成 `s.dependency 'SyRtcSDK', '3.2.0'`，删除 `ios/SyRtcSDK`，并在插件 Swift 里 `import SyRtcSDK`。在那之前不要让客户自己再 `pod 'SyRtcSDK'`。
+2. iOS 目标是 `SyRtcSDK` 3.2.0。trunk 还没有这个 pod，所以插件继续编译内置源码，WebRTC 依赖 `WebRTC-SDK` `125.6422.07`。推送步骤在 [sy-rtc-ios-sdk 的发布说明](https://github.com/carlcy/sy-rtc-ios-sdk/blob/main/PUBLISH_GUIDE.md)：`pod trunk register` → `pod lib lint SyRtcSDK.podspec` → `pod trunk push SyRtcSDK.podspec`。trunk 上出现 3.2.0 后，把 podspec 改成 `s.dependency 'SyRtcSDK', '3.2.0'`，删除 `ios/SyRtcSDK`，并在插件 Swift 里 `import SyRtcSDK`。在那之前不要让客户自己再 `pod 'SyRtcSDK'`。
 3. 对齐版本号：`pubspec.yaml`、`CHANGELOG.md`、`android/build.gradle` 的 `version`、`ios/sy_rtc_flutter_sdk.podspec` 的 `s.version`。CHANGELOG 最上一项必须是这个版本。
 4. 在仓库根目录检查：
 

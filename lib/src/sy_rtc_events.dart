@@ -45,22 +45,35 @@ class SyConnectionStateChangedEvent extends SyRtcEvent {
   final SyConnectionState state;
   final SyConnectionChangedReason reason;
 
+  /// 原生原文字符串。Android 例如 `signaling`、`ice`、`rejoined`；
+  /// iOS 例如 `signaling`、`signaling_give_up`、`rejoin_success`、`ice_checking:<uid>`。
+  /// [reason] 只覆盖能对上枚举名的情况，对不上时保持 [SyConnectionChangedReason.connecting]。
+  final String nativeReason;
+
   SyConnectionStateChangedEvent({
     required this.state,
     required this.reason,
+    this.nativeReason = '',
   }) : super('connectionStateChanged');
 }
 
 /// 网络质量事件
+///
+/// [txQuality] / [rxQuality] 由原生字符串按名字映射。两端档位和阈值不同，见 [SyNetworkQuality]。
+/// 对不上的字符串记为 [SyNetworkQuality.unknown]，原文留在 [txQualityRaw] / [rxQualityRaw]。
 class SyNetworkQualityEvent extends SyRtcEvent {
   final String uid;
   final SyNetworkQuality txQuality;
   final SyNetworkQuality rxQuality;
+  final String txQualityRaw;
+  final String rxQualityRaw;
 
   SyNetworkQualityEvent({
     required this.uid,
     required this.txQuality,
     required this.rxQuality,
+    this.txQualityRaw = '',
+    this.rxQualityRaw = '',
   }) : super('networkQuality');
 }
 
@@ -117,11 +130,65 @@ class SyLocalVideoStateChangedEvent extends SyRtcEvent {
 }
 
 /// 音频路由变化事件
+///
+/// [route] 是两端归一后的名字。[routing] 仍是原生原始整数，两端含义不同：
+/// Android 0 扬声器、1 耳机、2 蓝牙、3 听筒；
+/// iOS 0 耳机、1 听筒、3 扬声器、5 蓝牙、-1 未知。
 class SyAudioRoutingChangedEvent extends SyRtcEvent {
   final int routing;
+  final SyAudioRoute route;
 
-  SyAudioRoutingChangedEvent({required this.routing})
-      : super('audioRoutingChanged');
+  SyAudioRoutingChangedEvent({
+    required this.routing,
+    this.route = SyAudioRoute.unknown,
+  }) : super('audioRoutingChanged');
+}
+
+/// 播放路由。由插件把两端不同的整数翻译成同一个枚举。
+enum SyAudioRoute {
+  speaker,
+  earpiece,
+  headset,
+  bluetooth,
+  unknown;
+
+  static SyAudioRoute parse(String? name) {
+    for (final value in SyAudioRoute.values) {
+      if (value.name == name) return value;
+    }
+    return SyAudioRoute.unknown;
+  }
+}
+
+/// 对端通过信令更新的流附加信息。同一条原文仍会先走频道消息。
+class SyStreamExtraInfoEvent extends SyRtcEvent {
+  final String uid;
+  final String extra;
+
+  SyStreamExtraInfoEvent({required this.uid, required this.extra})
+      : super('streamExtraInfo');
+}
+
+/// Android DataChannel 上的 SEI 风格消息。不是 H.264 码流 SEI。iOS 不会发这个事件。
+class SySeiMessageEvent extends SyRtcEvent {
+  final String uid;
+  final int streamId;
+  final List<int> data;
+
+  SySeiMessageEvent({
+    required this.uid,
+    required this.streamId,
+    required this.data,
+  }) : super('seiMessage');
+}
+
+/// iOS 远端视频静音。Android 没有这个回调，视频静音走远端视频状态。
+class SyUserMuteVideoEvent extends SyRtcEvent {
+  final String uid;
+  final bool muted;
+
+  SyUserMuteVideoEvent({required this.uid, required this.muted})
+      : super('userMuteVideo');
 }
 
 /// 数据流消息事件
@@ -443,15 +510,38 @@ enum SyConnectionChangedReason {
   keepAliveTimeout, // 保活超时
 }
 
-/// 网络质量枚举
+/// 网络质量枚举。名字与原生字符串一致，插件不把一端的档位改写成另一端。
+///
+/// 没有 RTT 也没有丢包样本时，两端都回调 `unknown`。
+///
+/// Android（丢包为 0–100 的百分比，RTT 为毫秒）：
+/// `die` 丢包 ≥ 30 或 RTT ≥ 1000；`bad` ≥ 15 或 ≥ 500；
+/// `medium` ≥ 8 或 ≥ 300；`good` ≥ 3 或 ≥ 150；否则 `excellent`。
+///
+/// iOS（丢包为 0–1 的比例，RTT 为毫秒）：
+/// `down` 丢包 ≥ 0.5 或 RTT ≥ 2000；`bad` ≥ 0.2 或 ≥ 600；
+/// `poor` ≥ 0.08 或 ≥ 250；`good` ≥ 0.02 或 ≥ 100；否则 `excellent`。
+///
+/// 上下行目前用的是同一组统计，所以一次回调里的 tx 与 rx 相同。
+/// `veryBad` 保留给旧的枚举名，当前两端原生都不会发出这个字符串。
 enum SyNetworkQuality {
-  unknown,   // 未知
-  excellent, // 优秀
-  good,      // 良好
-  poor,      // 较差
-  bad,       // 差
-  veryBad,   // 很差
-  down,      // 无法连接
+  unknown,
+  excellent,
+  good,
+  medium,
+  poor,
+  bad,
+  veryBad,
+  down,
+  die,
+}
+
+/// 把原生质量字符串映射成枚举。无法识别时返回 [SyNetworkQuality.unknown]。
+SyNetworkQuality syNetworkQualityFromNative(String raw) {
+  for (final value in SyNetworkQuality.values) {
+    if (value.name == raw) return value;
+  }
+  return SyNetworkQuality.unknown;
 }
 
 /// 远端音频状态

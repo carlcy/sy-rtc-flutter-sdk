@@ -23,6 +23,16 @@ void main() {
         .setMockMethodCallHandler(channel, null);
   });
 
+  test('network quality keeps each platform name', () {
+    expect(syNetworkQualityFromNative('medium'), SyNetworkQuality.medium);
+    expect(syNetworkQualityFromNative('die'), SyNetworkQuality.die);
+    expect(syNetworkQualityFromNative('poor'), SyNetworkQuality.poor);
+    expect(syNetworkQualityFromNative('down'), SyNetworkQuality.down);
+    expect(syNetworkQualityFromNative('unknown'), SyNetworkQuality.unknown);
+    expect(syNetworkQualityFromNative('excellent'), SyNetworkQuality.excellent);
+    expect(syNetworkQualityFromNative('not-a-level'), SyNetworkQuality.unknown);
+  });
+
   test('quality tier wire values match the backend', () {
     expect(SyQualityTier.audio.wireValue, 'audio');
     expect(SyQualityTier.sd.wireValue, 'sd');

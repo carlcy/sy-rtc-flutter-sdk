@@ -16,6 +16,16 @@ void main() {
         .setMockMethodCallHandler(channel, (call) async {
       calls.add(call);
       if (call.method == 'hasFeature') return true;
+      if (call.method == 'isLocalAudioMuted') return true;
+      if (call.method == 'isRemoteAudioMuted') return null;
+      if (call.method == 'sendSei') return -2;
+      if (call.method == 'setAudioRoute') {
+        final route = (call.arguments as Map)['route'];
+        return route == 'speaker' || route == 'earpiece' ? 0 : -1;
+      }
+      if (call.method == 'getAudioRoute') {
+        return <String, Object>{'routing': 0, 'route': 'speaker'};
+      }
       if (call.method == 'httpRequest') {
         return <String, dynamic>{'code': 0, 'data': <String, dynamic>{}};
       }
@@ -42,15 +52,26 @@ void main() {
     expect(kSyRtcFlutterSdkVersion, '3.2.0');
   });
 
-  test('local mute is remembered and quality switch renews token', () async {
+  test('local mute queries native state and quality switch renews token', () async {
     final engine = SyRtcEngine();
     await engine.muteLocalAudio(true);
-    expect(engine.observedLocalAudioMuted, isTrue);
+    expect(await engine.isLocalAudioMuted(), isTrue);
+    expect(await engine.isRemoteAudioMuted('u2'), isNull);
+    expect(await engine.setAudioRoute(SyAudioRoute.bluetooth), -1);
+    expect(await engine.setAudioRoute(SyAudioRoute.speaker), 0);
+    expect(await engine.getAudioRoute(), SyAudioRoute.speaker);
+    expect(await engine.sendSei(1, Uint8List.fromList([1, 2])), -2);
 
     await engine.switchQualityTier(tier: SyQualityTier.hd, token: 'next');
     expect(
       calls.map((call) => call.method),
-      containsAll(<String>['muteLocalAudio', 'renewToken', 'setVideoEncoderConfiguration']),
+      containsAll(<String>[
+        'muteLocalAudio',
+        'isLocalAudioMuted',
+        'renewToken',
+        'setVideoEncoderConfiguration',
+        'setQualityTier',
+      ]),
     );
     final renew = calls.lastWhere((call) => call.method == 'renewToken');
     expect((renew.arguments as Map)['token'], 'next');

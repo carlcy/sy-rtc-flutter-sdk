@@ -1,10 +1,11 @@
 ## 3.2.0
 
 - 插件、example、文档中的版本统一为 3.2.0。客户写 `sy_rtc_flutter_sdk: ^3.2.0`。
-- Android 坐标改为 `com.github.carlcy:sy-rtc-android-sdk:v3.2.0`。iOS 目标为 `SyRtcSDK 3.2.0`；CocoaPods trunk 还没有该 pod，插件继续编译内置源码。
-- 补齐方法通道：`setChannelProfile`、`enableAudioVolumeIndication`，并转发网络质量、静音、Token、音视频状态回调。
+- Android 坐标为 `com.github.carlcy:sy-rtc-android-sdk:v3.2.0`。iOS 目标为 `SyRtcSDK 3.2.0`；CocoaPods trunk 还没有该 pod，插件编译内置源码（对齐 `sy-rtc-ios-sdk` 分支 `cursor/versioned-spm-cocoapods-3ccc`）。
+- 接通原生能力：网络质量（RTT+丢包，无样本为 `unknown`）、0–255 音量、音频路由、前后摄、屏幕共享、静音查询、流附加信息、数据流、自定义采集开关、重连回调。
+- 两端不一致的地方保持原样并写在文档里：质量档位名字和阈值、路由原始整数、iOS 只能切扬声器/听筒、Android `getNetworkType` 仍是 `unknown`、`sendSei` 仅 Android（DataChannel，不是码流 SEI）、远端静音查询仅 Android、重连次数 Android 3 次 / iOS 5 次。
+- 去掉音量固定 0、空网络质量、以及 iOS 写死的「默认麦克风」列表。iOS 采集设备改为 `AVAudioSession.availableInputs`。
 - 新增频道属性 `POST /api/rtc/channel/meta/set|get|delete`（用户 JWT）、`switchQualityTier`，以及 Token 业务码 4031/4032/4033。
-- 音量真实采集、网络质量上报、屏幕帧进轨、设备列表回读在原生侧尚未完成，Dart 只转发或记录本端调用，不编造结果。
 
 ## 3.1.2
 

@@ -28,15 +28,6 @@ class SyRtcEngine {
   final StreamController<SyRtcEvent> _eventController =
       StreamController<SyRtcEvent>.broadcast();
 
-  /// 最近一次成功的 [muteLocalAudio]。不是硬件回读。
-  bool? _observedLocalAudioMuted;
-
-  /// 最近一次成功的 [muteLocalVideoStream]。不是硬件回读。
-  bool? _observedLocalVideoMuted;
-
-  /// 本端是否已调用 [startScreenCapture] 且尚未 [stopScreenCapture]。
-  bool _screenCaptureRequested = false;
-
   final Map<String, bool> _remoteAudioMuted = {};
   final Map<String, bool> _serverAudioMuted = {};
 
@@ -153,16 +144,25 @@ class SyRtcEngine {
   /// [muted] true为静音，false为取消静音
   Future<void> muteLocalAudio(bool muted) async {
     await _channel.invokeMethod('muteLocalAudio', {'muted': muted});
-    _observedLocalAudioMuted = muted;
   }
 
-  /// 最近一次成功调用 [muteLocalAudio] 的结果。
+  /// 本端音频是否已静音。读原生轨道状态，不是上次调用的缓存。
   ///
-  /// TODO: 原生 SDK 还没有 `isLocalAudioMuted` 查询。这里不是麦克风硬件回读，
-  /// 服务端静音也不会改这个值，请同时听 [onServerMuteAudio]。
-  bool? get observedLocalAudioMuted => _observedLocalAudioMuted;
+  /// 服务端静音不一定改这个值，请同时听 [onServerMuteAudio]。
+  Future<bool> isLocalAudioMuted() async {
+    final value = await _channel.invokeMethod<bool>('isLocalAudioMuted');
+    return value ?? false;
+  }
 
-  /// 最近一次 [onUserMuteAudio] 里该用户的静音标志。原生尚未回调时为 null。
+  /// 指定远端的音频是否被本端静音。
+  ///
+  /// Android 查询原生记录。iOS 没有这个查询，返回 null。
+  /// 最近一次 [onUserMuteAudio] 仍可从 [remoteAudioMuted] 读取。
+  Future<bool?> isRemoteAudioMuted(String uid) async {
+    return _channel.invokeMethod<bool>('isRemoteAudioMuted', {'uid': uid});
+  }
+
+  /// 最近一次 [onUserMuteAudio] 里该用户的静音标志。尚未回调时为 null。
   bool? remoteAudioMuted(String uid) => _remoteAudioMuted[uid];
 
   /// 最近一次 [onServerMuteAudio] 里该用户的静音标志。原生尚未回调时为 null。
@@ -195,10 +195,11 @@ class SyRtcEngine {
   /// 启用后，SDK 会按设定间隔触发 onVolumeIndication 回调。
   /// [interval] 回调间隔（毫秒），建议 200ms。设为 0 禁用。
   /// [smooth] 平滑系数，建议 3
-  /// [reportVad] 是否报告本地用户的人声检测，默认 false
+  /// [reportVad] iOS 会在能量大于 0.02 时把 `vad` 置 1。Android 接受该参数，
+  /// 但回调里没有人声检测，插件把 `vad` 填 0。
   ///
-  /// TODO: 现有原生实现会按间隔回调，但音量固定为 0，还没有真实音量采集。
-  /// 插件只转发原生回调，不填假音量。
+  /// `volume` 两端都是 0–255。Android 来自本地/远端 PCM 的 RMS。
+  /// iOS 来自 WebRTC `audioLevel`（0–1）乘 255。没有统计样本时音量为 0，不是占位常数。
   Future<void> enableAudioVolumeIndication({
     int interval = 200,
     int smooth = 3,
@@ -270,7 +271,14 @@ class SyRtcEngine {
         .cast<SyRequestTokenEvent>();
   }
 
-  /// 连接状态变化事件流
+  /// 连接状态变化事件流。
+  ///
+  /// 重连策略两端不同，插件不统一次数：
+  /// Android 信令失败最多再试 3 次（间隔 1 秒乘已尝试次数），用尽后 `state=failed`，
+  /// `onError` 码 1003。ICE 断开会 `restartIce`，恢复后回调 `onRejoinChannelSuccess`。
+  /// iOS 信令按 1、2、4、8、16 秒退避，最多 5 次，用尽后 `nativeReason=signaling_give_up`，
+  /// `onError` 码 1005。信令重新连上后也会回调 `onRejoinChannelSuccess`。
+  /// 看原生原因请用 [SyConnectionStateChangedEvent.nativeReason]，不要只看枚举。
   Stream<SyConnectionStateChangedEvent> get onConnectionStateChanged {
     return _eventController.stream
         .where((event) => event is SyConnectionStateChangedEvent)
@@ -279,8 +287,8 @@ class SyRtcEngine {
 
   /// 网络质量事件流。
   ///
-  /// TODO: 原生 `onNetworkQuality` 目前是空回调，引擎还不会上报上下行质量。
-  /// 插件已转发该事件；在原生开始调用之前，这个流不会有数据。
+  /// 由本机 RTT 和丢包算出。没有样本时质量为 [SyNetworkQuality.unknown]。
+  /// 两端档位名字和阈值不同，见 [SyNetworkQuality]。插件不改写这些名字。
   Stream<SyNetworkQualityEvent> get onNetworkQuality {
     return _eventController.stream
         .where((event) => event is SyNetworkQualityEvent)
@@ -334,6 +342,27 @@ class SyRtcEngine {
     return _eventController.stream
         .where((event) => event is SyStreamMessageErrorEvent)
         .cast<SyStreamMessageErrorEvent>();
+  }
+
+  /// 流附加信息事件流。同一条原文仍会先出现在 [onChannelMessage]。
+  Stream<SyStreamExtraInfoEvent> get onStreamExtraInfoUpdated {
+    return _eventController.stream
+        .where((event) => event is SyStreamExtraInfoEvent)
+        .cast<SyStreamExtraInfoEvent>();
+  }
+
+  /// Android DataChannel SEI 风格消息。iOS 不会产生这个流。
+  Stream<SySeiMessageEvent> get onSeiMessage {
+    return _eventController.stream
+        .where((event) => event is SySeiMessageEvent)
+        .cast<SySeiMessageEvent>();
+  }
+
+  /// iOS 远端视频静音。Android 没有这个事件。
+  Stream<SyUserMuteVideoEvent> get onUserMuteVideo {
+    return _eventController.stream
+        .where((event) => event is SyUserMuteVideoEvent)
+        .cast<SyUserMuteVideoEvent>();
   }
 
   /// 频道消息事件流
@@ -449,7 +478,11 @@ class SyRtcEngine {
 
   // ==================== 音频设备管理 ====================
 
-  /// 获取音频采集设备列表
+  /// 获取音频采集设备列表。
+  ///
+  /// Android 来自 `AudioManager` 的输入设备。
+  /// iOS 来自 `AVAudioSession.availableInputs`。会话还没配成可录音、或系统没有输入口时为空列表，
+  /// 不再返回写死的「默认麦克风」。
   Future<List<SyAudioDeviceInfo>> enumerateRecordingDevices() async {
     final result = await _channel.invokeMethod('enumerateRecordingDevices');
     final List<dynamic> devices = result as List<dynamic>? ?? [];
@@ -461,7 +494,10 @@ class SyRtcEngine {
         .toList();
   }
 
-  /// 获取音频播放设备列表
+  /// 获取音频播放设备列表。
+  ///
+  /// Android 来自 `AudioManager` 的输出设备。
+  /// iOS 只返回能真正切换的两项：`speaker`、`earpiece`。蓝牙和有线耳机只通过 [onAudioRoutingChanged] 上报。
   Future<List<SyAudioDeviceInfo>> enumeratePlaybackDevices() async {
     final result = await _channel.invokeMethod('enumeratePlaybackDevices');
     final List<dynamic> devices = result as List<dynamic>? ?? [];
@@ -473,17 +509,30 @@ class SyRtcEngine {
         .toList();
   }
 
-  /// 设置音频采集设备
-  Future<void> setRecordingDevice(String deviceId) async {
-    await _channel.invokeMethod('setRecordingDevice', {'deviceId': deviceId});
+  /// 设置音频采集设备。
+  ///
+  /// iOS 用 `setPreferredInput`，找不到该 uid 时返回 -1。Android 返回原生结果。
+  Future<int> setRecordingDevice(String deviceId) async {
+    final value = await _channel.invokeMethod<int>('setRecordingDevice', {
+      'deviceId': deviceId,
+    });
+    return value ?? -1;
   }
 
-  /// 设置音频播放设备
-  Future<void> setPlaybackDevice(String deviceId) async {
-    await _channel.invokeMethod('setPlaybackDevice', {'deviceId': deviceId});
+  /// 设置音频播放设备。
+  ///
+  /// iOS 只接受 `speaker` 和 `earpiece`，其它 id 返回 -1。
+  Future<int> setPlaybackDevice(String deviceId) async {
+    final value = await _channel.invokeMethod<int>('setPlaybackDevice', {
+      'deviceId': deviceId,
+    });
+    return value ?? -1;
   }
 
-  /// 获取采集音量（0-255）
+  /// 获取采集设备音量。
+  ///
+  /// 这是系统设备音量，不是 [enableAudioVolumeIndication] 的 0–255 说话音量。
+  /// iOS 不提供输入音量读取，原生固定返回 0。
   Future<int> getRecordingDeviceVolume() async {
     final result = await _channel.invokeMethod('getRecordingDeviceVolume');
     return result as int? ?? 0;
@@ -517,7 +566,11 @@ class SyRtcEngine {
     );
   }
 
-  /// 获取网络类型
+  /// 获取网络类型。
+  ///
+  /// iOS 用 `NWPathMonitor`，可能是 `wifi`、`cellular`、`ethernet`、`none`、`unknown`。
+  /// 监视器在进房后才启动，在那之前是 `unknown`。
+  /// Android 3.2.0 的 `getNetworkType()` 固定返回 `unknown`，插件不另外猜测 Wi-Fi 或蜂窝。
   Future<String> getNetworkType() async {
     final result = await _channel.invokeMethod('getNetworkType');
     return result as String? ?? 'unknown';
@@ -587,6 +640,7 @@ class SyRtcEngine {
           await setVideoQuality(preset);
         }
     }
+    await _channel.invokeMethod('setQualityTier', {'tier': tier.wireValue});
   }
 
   /// 切换画质档位：先保存新 Token，再改本地编码。
@@ -660,13 +714,40 @@ class SyRtcEngine {
   /// 静音本地视频
   Future<void> muteLocalVideoStream(bool muted) async {
     await _channel.invokeMethod('muteLocalVideoStream', {'muted': muted});
-    _observedLocalVideoMuted = muted;
   }
 
-  /// 最近一次成功调用 [muteLocalVideoStream] 的结果。
+  /// 本端视频是否已静音。读原生轨道状态。
+  Future<bool> isLocalVideoMuted() async {
+    final value = await _channel.invokeMethod<bool>('isLocalVideoMuted');
+    return value ?? false;
+  }
+
+  /// 指定远端的视频是否被本端静音。
   ///
-  /// TODO: 原生 SDK 还没有本地视频静音查询接口，这里不是采集状态回读。
-  bool? get observedLocalVideoMuted => _observedLocalVideoMuted;
+  /// Android 查询原生记录。iOS 没有这个查询，返回 null。
+  Future<bool?> isRemoteVideoMuted(String uid) async {
+    return _channel.invokeMethod<bool>('isRemoteVideoMuted', {'uid': uid});
+  }
+
+  /// 在前后摄像头之间切换。
+  ///
+  /// Android：0 已发起切换，-1 当前没有摄像头采集器（屏幕共享或自定义采集）。
+  /// iOS：有引擎时返回 0。原生方法没有失败码，切换失败时走 `onError`。
+  Future<int> switchCamera() async {
+    final value = await _channel.invokeMethod<int>('switchCamera');
+    return value ?? -1;
+  }
+
+  /// 指定使用前置或后置摄像头。
+  ///
+  /// iOS 调用 `useFrontCamera`，有引擎时返回 0。
+  /// Android 没有这个方法，返回 -2。请改用 [switchCamera]。
+  Future<int> useFrontCamera(bool front) async {
+    final value = await _channel.invokeMethod<int>('useFrontCamera', {
+      'front': front,
+    });
+    return value ?? -1;
+  }
 
   /// 静音远端视频
   Future<void> muteRemoteVideoStream(String uid, bool muted) async {
@@ -708,15 +789,20 @@ class SyRtcEngine {
 
   /// 开始屏幕共享（需要 rtc 产品权限）。
   ///
-  /// TODO: Android 依赖 MediaProjection 授权，当前原生实现没有弹出系统授权；
-  /// iOS 会启动 ReplayKit，但还没有把采集帧送进 WebRTC 视频轨。
-  /// 调用成功只表示原生方法已执行，不表示观众已经能看到屏幕。
-  Future<void> startScreenCapture(SyScreenCaptureConfiguration config) async {
+  /// Android 会先弹出 MediaProjection 授权。用户同意后，插件把 Intent 交给
+  /// `startScreenCapture(intent, config)`，帧进入本地视频轨。返回 0 表示采集已启动，
+  /// -1 表示没有 Activity、用户拒绝或创建失败。本 SDK 没有 mediaProjection 前台服务；
+  /// Android 10 及以上系统可能因此拒绝采集，需要宿主自行声明该服务。
+  ///
+  /// iOS 使用应用内 ReplayKit，帧进入 WebRTC。返回 0 只表示调用已发出，
+  /// 用户拒绝或启动失败时走 `onError`（1008），不会把返回值改成失败。
+  /// 这是应用内采集，不是 Broadcast Upload Extension 的跨进程共享。
+  Future<int> startScreenCapture(SyScreenCaptureConfiguration config) async {
     final hasRtc = await hasRtcFeature();
     if (!hasRtc) {
       throw Exception('当前 AppId 未开通 RTC 产品，无法使用屏幕共享');
     }
-    await _channel.invokeMethod('startScreenCapture', {
+    final value = await _channel.invokeMethod<int>('startScreenCapture', {
       'captureMouseCursor': config.captureMouseCursor,
       'captureWindow': config.captureWindow,
       'frameRate': config.frameRate,
@@ -724,18 +810,12 @@ class SyRtcEngine {
       'width': config.width,
       'height': config.height,
     });
-    _screenCaptureRequested = true;
+    return value ?? -1;
   }
-
-  /// 本端是否调用过 [startScreenCapture] 且尚未 [stopScreenCapture]。
-  ///
-  /// TODO: 不是原生采集状态。授权失败或 ReplayKit 失败时，这个值仍可能为 true。
-  bool get screenCaptureRequested => _screenCaptureRequested;
 
   /// 停止屏幕共享
   Future<void> stopScreenCapture() async {
     await _channel.invokeMethod('stopScreenCapture');
-    _screenCaptureRequested = false;
   }
 
   /// 更新屏幕共享配置
@@ -753,7 +833,45 @@ class SyRtcEngine {
 
   // ==================== 视频增强 ====================
 
-  /// 设置美颜选项（需要 rtc 产品权限）
+  /// 停掉摄像头，改由原生侧喂帧。
+  ///
+  /// Android 返回 0 表示已切换，-1 表示引擎未就绪。之后要调用
+  /// `pushExternalVideoFrame(org.webrtc.VideoFrame)`，方法通道传不过这种帧。
+  /// iOS 调用 `enableCustomVideoCapture`，有引擎时返回 0；帧要通过
+  /// `sendCustomVideoFrame(CVPixelBuffer)` 送入，同样不能从 Dart 传像素。
+  /// 插件不提供字节数组推帧，避免假装已经送进编码器。
+  Future<int> enableCustomVideoCapture(bool enabled) async {
+    final value = await _channel.invokeMethod<int>('enableCustomVideoCapture', {
+      'enabled': enabled,
+    });
+    return value ?? -1;
+  }
+
+  /// 当前播放路由。名字已按平台翻译，见 [SyAudioRoute]。
+  ///
+  /// iOS 只能用 [setAudioRoute] 切到扬声器或听筒；蓝牙和有线耳机只在回调里出现。
+  /// Android 能上报扬声器、听筒、耳机、蓝牙；主动切换同样只有扬声器和听筒。
+  Future<SyAudioRoute> getAudioRoute() async {
+    final value = await _channel.invokeMethod<Map<Object?, Object?>>('getAudioRoute');
+    return SyAudioRoute.parse(value?['route'] as String?);
+  }
+
+  /// 切换播放路由。
+  ///
+  /// 返回 0 表示已交给原生。扬声器和听筒两端都可以切。
+  /// 耳机、蓝牙在两端都返回 -1：Android 只检测这些设备，iOS 会额外回调 `onError` 1004。
+  Future<int> setAudioRoute(SyAudioRoute route) async {
+    final value = await _channel.invokeMethod<int>('setAudioRoute', {
+      'route': route.name,
+    });
+    return value ?? -1;
+  }
+
+  /// 设置美颜选项（需要 rtc 产品权限）。
+  ///
+  /// 打开后原生在编码前做提亮。自定义帧处理器是原生钩子
+  /// （Android `VideoFrameProcessor`，iOS `SyRtcVideoFrameProcessor`），
+  /// 会替换内置提亮。插件没有把视频帧回调到 Dart。
   Future<void> setBeautyEffectOptions(SyBeautyOptions options) async {
     if (options.enabled) {
       final hasRtc = await hasRtcFeature();
@@ -898,12 +1016,42 @@ class SyRtcEngine {
     return result as int? ?? 0;
   }
 
-  /// 发送数据流消息
+  /// 发送数据流消息。两端都走 DataChannel。
   Future<void> sendStreamMessage(int streamId, Uint8List data) async {
     await _channel.invokeMethod('sendStreamMessage', {
       'streamId': streamId,
       'data': data,
     });
+  }
+
+  /// 经 DataChannel 发送带 `SYSEI` 前缀的二进制。不是 H.264 码流 SEI。
+  ///
+  /// Android：0 已写入打开的通道，-1 流不存在或通道未打开。
+  /// iOS 没有 `sendSei`，返回 -2。请改用 [sendStreamMessage]。
+  Future<int> sendSei(int streamId, Uint8List data) async {
+    final value = await _channel.invokeMethod<int>('sendSei', {
+      'streamId': streamId,
+      'data': data,
+    });
+    return value ?? -1;
+  }
+
+  /// 通过频道信令广播本端流附加信息。
+  ///
+  /// Android：未进房返回 -1，已发送返回 0。
+  /// iOS 的原生方法没有返回值；引擎存在时插件返回 0，不表示对端已经收到。
+  Future<int> setStreamExtraInfo(String extra) async {
+    final value = await _channel.invokeMethod<int>('setStreamExtraInfo', {
+      'extra': extra,
+    });
+    return value ?? -1;
+  }
+
+  /// 读取本端最近一次流附加信息。
+  ///
+  /// iOS 返回原生保存的字符串。Android 没有这个查询，返回 null。
+  Future<String?> getStreamExtraInfo() {
+    return _channel.invokeMethod<String>('getStreamExtraInfo');
   }
 
 
@@ -1012,8 +1160,11 @@ class SyRtcEngine {
             (e) => e.toString().split('.').last == reasonStr,
             orElse: () => SyConnectionChangedReason.connecting,
           );
-          final event =
-              SyConnectionStateChangedEvent(state: state, reason: reason);
+          final event = SyConnectionStateChangedEvent(
+            state: state,
+            reason: reason,
+            nativeReason: reasonStr,
+          );
           _eventController.add(event);
           _eventHandler?.onConnectionStateChanged?.call(state, reason);
           break;
@@ -1021,16 +1172,15 @@ class SyRtcEngine {
           final uid = call.arguments['uid'] as String? ?? '0';
           final txStr = call.arguments['txQuality'] as String? ?? 'unknown';
           final rxStr = call.arguments['rxQuality'] as String? ?? 'unknown';
-          final txQuality = SyNetworkQuality.values.firstWhere(
-            (e) => e.toString().split('.').last == txStr,
-            orElse: () => SyNetworkQuality.unknown,
-          );
-          final rxQuality = SyNetworkQuality.values.firstWhere(
-            (e) => e.toString().split('.').last == rxStr,
-            orElse: () => SyNetworkQuality.unknown,
-          );
+          final txQuality = syNetworkQualityFromNative(txStr);
+          final rxQuality = syNetworkQualityFromNative(rxStr);
           final event = SyNetworkQualityEvent(
-              uid: uid, txQuality: txQuality, rxQuality: rxQuality);
+            uid: uid,
+            txQuality: txQuality,
+            rxQuality: rxQuality,
+            txQualityRaw: txStr,
+            rxQualityRaw: rxStr,
+          );
           _eventController.add(event);
           _eventHandler?.onNetworkQuality?.call(uid, txQuality, rxQuality);
           break;
@@ -1113,10 +1263,36 @@ class SyRtcEngine {
           _eventHandler?.onLocalVideoStateChanged?.call(state, error);
           break;
         case 'onAudioRoutingChanged':
-          final routing = call.arguments['routing'] as int? ?? 0;
-          final event = SyAudioRoutingChangedEvent(routing: routing);
+          final routing = call.arguments['routing'] as int? ?? -1;
+          final route = SyAudioRoute.parse(call.arguments['route'] as String?);
+          final event =
+              SyAudioRoutingChangedEvent(routing: routing, route: route);
           _eventController.add(event);
           _eventHandler?.onAudioRoutingChanged?.call(routing);
+          _eventHandler?.onAudioRoute?.call(route);
+          break;
+        case 'onStreamExtraInfoUpdated':
+          final uid = call.arguments['uid'] as String? ?? '';
+          final extra = call.arguments['extra'] as String? ?? '';
+          final event = SyStreamExtraInfoEvent(uid: uid, extra: extra);
+          _eventController.add(event);
+          _eventHandler?.onStreamExtraInfoUpdated?.call(uid, extra);
+          break;
+        case 'onSeiMessage':
+          final uid = call.arguments['uid'] as String? ?? '';
+          final streamId = call.arguments['streamId'] as int? ?? 0;
+          final data = List<int>.from(call.arguments['data'] ?? []);
+          final event =
+              SySeiMessageEvent(uid: uid, streamId: streamId, data: data);
+          _eventController.add(event);
+          _eventHandler?.onSeiMessage?.call(uid, streamId, data);
+          break;
+        case 'onUserMuteVideo':
+          final uid = call.arguments['uid'] as String? ?? '';
+          final muted = call.arguments['muted'] as bool? ?? false;
+          final event = SyUserMuteVideoEvent(uid: uid, muted: muted);
+          _eventController.add(event);
+          _eventHandler?.onUserMuteVideo?.call(uid, muted);
           break;
         case 'onStreamMessage':
           final uid = call.arguments['uid'] as String;

@@ -25,7 +25,10 @@ class SyRtcEventHandler {
   final void Function(SyConnectionState state, SyConnectionChangedReason reason)?
       onConnectionStateChanged;
 
-  /// 网络质量回调
+  /// 网络质量回调。
+  ///
+  /// 音量无关。质量由本机 WebRTC 统计里的 RTT 和丢包算出，没有样本时为
+  /// [SyNetworkQuality.unknown]。Android 与 iOS 的档位名字和阈值不同，见 [SyNetworkQuality]。
   final void Function(String uid, SyNetworkQuality txQuality,
       SyNetworkQuality rxQuality)? onNetworkQuality;
 
@@ -43,11 +46,19 @@ class SyRtcEventHandler {
   /// 与 [onError] 同时触发，不替换它。
   final void Function(SyTokenBusinessCode code, String message)? onTokenError;
 
-  /// 音量指示回调
+  /// 音量指示回调。
+  ///
+  /// 每个 map 含 `uid`、`volume`（0–255）、`vad`。
+  /// Android 本地 uid 为 `local`，音量是 PCM RMS；`reportVad` 不产生人声标记，`vad` 恒为 0。
+  /// iOS 本地 uid 是进房 uid，音量是 WebRTC `audioLevel`（0–1）乘 255；
+  /// `reportVad` 为 true 且能量大于 0.02 时 `vad` 为 1，否则为 0。
   final void Function(List<Map<String, dynamic>> speakers)? onVolumeIndication;
 
   /// 远端用户静音/取消静音回调
   final void Function(String uid, bool muted)? onUserMuteAudio;
+
+  /// iOS 远端视频静音。Android 不回调这个方法。
+  final void Function(String uid, bool muted)? onUserMuteVideo;
 
   /// 本地音频状态变化回调
   final void Function(SyLocalAudioStreamState state, SyLocalAudioStreamError error)?
@@ -79,8 +90,11 @@ class SyRtcEventHandler {
   final void Function(String uid, int width, int height, int rotation)?
       onVideoSizeChanged;
 
-  /// 音频路由变化回调
+  /// 音频路由变化回调。参数是原生原始整数，两端数值不同，见 [SyAudioRoutingChangedEvent]。
   final void Function(int routing)? onAudioRoutingChanged;
+
+  /// 归一后的播放路由。iOS 只能主动切到扬声器或听筒。
+  final void Function(SyAudioRoute route)? onAudioRoute;
 
   /// 音频发布状态变化回调
   final void Function(String channelId, SyStreamPublishState oldState,
@@ -102,6 +116,13 @@ class SyRtcEventHandler {
 
   /// 频道消息回调（底层信令通道，用于应用层自定义消息）
   final void Function(String uid, String message)? onChannelMessage;
+
+  /// 流附加信息。同一条原文仍会先走 [onChannelMessage]。
+  final void Function(String uid, String extra)? onStreamExtraInfoUpdated;
+
+  /// Android DataChannel SEI 风格消息，不是码流 SEI。iOS 没有这个回调。
+  /// 原始字节（Android 含 `SYSEI` 前缀）仍会通过 [onStreamMessage] 给出。
+  final void Function(String uid, int streamId, List<int> data)? onSeiMessage;
 
   /// 被服务端踢出房间（信令 type=kicked，或 poll；非 SFU 强制断流）
   final void Function(String channelId, String reason)? onKicked;
@@ -126,6 +147,7 @@ class SyRtcEventHandler {
     this.onTokenError,
     this.onVolumeIndication,
     this.onUserMuteAudio,
+    this.onUserMuteVideo,
     this.onLocalAudioStateChanged,
     this.onRemoteAudioStateChanged,
     this.onLocalVideoStateChanged,
@@ -134,11 +156,14 @@ class SyRtcEventHandler {
     this.onFirstRemoteVideoFrame,
     this.onVideoSizeChanged,
     this.onAudioRoutingChanged,
+    this.onAudioRoute,
     this.onAudioPublishStateChanged,
     this.onAudioSubscribeStateChanged,
     this.onStreamMessage,
     this.onStreamMessageError,
     this.onChannelMessage,
+    this.onStreamExtraInfoUpdated,
+    this.onSeiMessage,
     this.onKicked,
     this.onServerMuteAudio,
     this.onError,
