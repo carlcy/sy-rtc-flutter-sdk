@@ -544,32 +544,89 @@ class SyErrorEvent extends SyRtcEvent {
       : super('error');
 }
 
-/// 业务后端约定的 Token 错误码。
+/// `onError(code, message)` 的错误码。与 Android `RtcErrorCode`、iOS `SyRtcErrorCode` 取值相同。
 ///
-/// 出现在 `POST /api/rtc/token` 的 `code`，以及信令/引擎 `onError` 的错误码。
-/// 展示给用户时优先用服务端 `msg`；下面的说明只用于客户端分支。
+/// 10xx 是原生 SDK 本地错误；[forbidden] 和 4031 / 4032 / 4033 与服务端 REST 业务码相同，
+/// 来自信令 `kicked` / `error` 帧的 `data.code`（需要 2026-09-30 之后的服务端）。
+class SyRtcErrorCode {
+  SyRtcErrorCode._();
+
+  /// 参数无效或调用时机不对（空 Token、重复 join、未知画质档位、附加信息超过 1024 字节）。
+  static const int invalidArgument = 1000;
+
+  /// 信令服务端返回的错误；message 为服务端原文。
+  static const int signaling = 1002;
+
+  /// 重连 5 次都失败，需要 leave 后重新 join。
+  static const int reconnectFailed = 1003;
+
+  /// 被房间管理踢出（同时有 `onKicked`）。凭证停用时改报 4031 / 4032 / 4033。
+  static const int kicked = 1004;
+
+  /// 摄像头打开 / 切换失败，或没有可用视频源。
+  static const int camera = 1005;
+
+  /// 屏幕共享失败。
+  static const int screenShare = 1006;
+
+  /// 自定义视频采集用法错误或视频源未就绪。
+  static const int customCapture = 1007;
+
+  /// 音频路由切换失败或不支持（目前只有 iOS 会报）。
+  static const int audioRoute = 1009;
+
+  /// 服务端拒绝入房：在踢出名单、房间锁定、不在白名单。
+  static const int forbidden = 403;
+
+  /// AppId 的访问凭证已暂停。
+  static const int credentialSuspended = 4031;
+
+  /// AppId 的访问凭证已吊销。
+  static const int credentialRevoked = 4032;
+
+  /// AppId 的访问凭证已过期。
+  static const int credentialExpired = 4033;
+
+  static bool isCredentialBlocked(int code) =>
+      code == credentialSuspended ||
+      code == credentialRevoked ||
+      code == credentialExpired;
+}
+
+/// 访问凭证业务码（服务端 `errcode.Credential*`）。
+///
+/// 出现在 `POST /api/rtc/token`、`/api/rtc/token/renew` 的 `code`，以及凭证被停用时
+/// 信令断开后的 `onError`。展示给用户时优先用服务端 `msg`。
 enum SyTokenBusinessCode {
-  /// 4031 Token 无效（签名错误或格式不对）。
-  invalid(4031),
+  /// 4031 访问凭证已暂停（管理员可恢复）。
+  suspended(4031),
 
-  /// 4032 Token 已过期。
-  expired(4032),
+  /// 4032 访问凭证已吊销（不可恢复）。
+  revoked(4032),
 
-  /// 4033 Token 权限不足（角色或画质档位不被允许）。
-  privilegeDenied(4033);
+  /// 4033 访问凭证已过期。
+  expired(4033);
 
   final int value;
 
   const SyTokenBusinessCode(this.value);
 
+  /// 旧名字。4031 的真实含义是凭证已暂停。
+  @Deprecated('Use SyTokenBusinessCode.suspended (4031 = credential suspended)')
+  static const SyTokenBusinessCode invalid = suspended;
+
+  /// 旧名字。4033 的真实含义是凭证已过期。
+  @Deprecated('Use SyTokenBusinessCode.expired (4033 = credential expired)')
+  static const SyTokenBusinessCode privilegeDenied = expired;
+
   static SyTokenBusinessCode? tryParse(int? code) {
     switch (code) {
       case 4031:
-        return SyTokenBusinessCode.invalid;
+        return SyTokenBusinessCode.suspended;
       case 4032:
-        return SyTokenBusinessCode.expired;
+        return SyTokenBusinessCode.revoked;
       case 4033:
-        return SyTokenBusinessCode.privilegeDenied;
+        return SyTokenBusinessCode.expired;
       default:
         return null;
     }

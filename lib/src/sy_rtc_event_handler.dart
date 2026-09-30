@@ -136,7 +136,7 @@ class SyRtcEventHandler {
   /// 服务端静音/解静音本端或远端（mute-audio 信令 / poll）
   final void Function(String uid, bool muted)? onServerMuteAudio;
 
-  /// 错误回调
+  /// 错误回调。`code` 取值见 [SyRtcErrorCode]，两端相同。
   final void Function(int code, String message)? onError;
 
   /// 开始重连（两端同一策略，见 [SyReconnectPolicy]）。

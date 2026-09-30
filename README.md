@@ -181,7 +181,7 @@ SyRtcVideoView(engine: engine, uid: remoteUid);
 
 ### 7. 续期 Token
 
-在 `onTokenPrivilegeWillExpire`（即将过期）和 `onRequestToken`（已过期）里向业务服务器再要一次 Token，然后交给引擎。引擎只保存新 Token，供后续重连使用，不会中途拆掉信令连接。
+两端原生 SDK 都读 Token payload 里的 `expireAt`（服务端 Token 形如 `base64url(payload).签名`，也兼容 JWT `exp`），过期前 30 秒回调 `onTokenPrivilegeWillExpire`，到期回调 `onRequestToken`；`join` 和 `renewToken` 后重新计时。在回调里向业务服务器再要一次 Token，然后 `renewToken`。引擎用新 Token 重连信令 WebSocket，已建立的媒体连接保留，不需要先 leave。
 
 ```dart
 engine.setEventHandler(SyRtcEventHandler(
@@ -248,13 +248,35 @@ await room.deleteChannelMeta(channelId: channelId, key: 'title');
 
 ### 10. Token 业务码
 
-`POST /api/rtc/token` 或引擎 `onError` 返回这些码时，会抛出 `SyTokenException`，并额外回调 `onTokenError`（原来的 `onError` 仍会触发）。
+`POST /api/rtc/token` / `token/renew` 返回这些码时抛出 `SyTokenException`；引擎 `onError` 收到这些码时额外回调 `onTokenError`（原来的 `onError` 仍会触发）。它们是 AppId 访问凭证的状态，与服务端 `errcode.Credential*` 一致。凭证被停用时服务端会断开信令，引擎先 `onKicked` 再 `onError(4031/4032/4033)`。
 
 | 码 | 含义 |
 | --- | --- |
-| 4031 | Token 无效 |
-| 4032 | Token 已过期 |
-| 4033 | 权限不足（角色或画质档位不允许） |
+| 码 | `SyTokenBusinessCode` | 含义 |
+| --- | --- | --- |
+| 4031 | `suspended` | 访问凭证已暂停（可恢复） |
+| 4032 | `revoked` | 访问凭证已吊销 |
+| 4033 | `expired` | 访问凭证已过期 |
+
+3.2.0 的 Dart 文档把这三个码写成了「Token 无效 / Token 已过期 / 权限不足」，与服务端不符。`invalid`、`privilegeDenied` 保留为已弃用别名（分别等于 `suspended`、`expired`）；**`expired` 现在是 4033**（原来错标为 4032）。
+
+### 错误码
+
+`onError(code, message)` 两端取值相同，常量在 `SyRtcErrorCode`（与 Android `RtcErrorCode`、iOS `SyRtcErrorCode` 一致）：
+
+| code | 常量 | 含义 |
+| --- | --- | --- |
+| 1000 | `invalidArgument` | 参数无效或调用时机不对 |
+| 1002 | `signaling` | 信令服务端返回的错误，message 为服务端原文 |
+| 1003 | `reconnectFailed` | 重连 5 次都失败 |
+| 1004 | `kicked` | 被房间管理踢出 |
+| 1005 | `camera` | 摄像头不可用 |
+| 1006 | `screenShare` | 屏幕共享失败 |
+| 1007 | `customCapture` | 自定义采集用法错误 |
+| 1009 | `audioRoute` | 音频路由不支持（iOS） |
+| 403 | `forbidden` | 服务端拒绝入房（踢出名单 / 锁定 / 白名单） |
+| 4031–4033 | `credential*` | 访问凭证暂停 / 吊销 / 过期 |
+
 
 ### 11. 已接通的原生能力
 
@@ -292,11 +314,11 @@ engine.setEventHandler(SyRtcEventHandler(
 
 **通话统计。** `onRtcStats` 的 `SyRtcStats` 新增 `uid`、`rttMs`、`packetLossRate`（**统一为 0–1 的比例**，Android 原生的 0–100 `lossPercent` 已除以 100）、`txBitrate` / `rxBitrate`（bit/s，仅 Android）、`quality`（统一档位）、`networkType`（仅 iOS）和原始字段 `raw`。3.2.0 起 iOS 也会回调 `onRtcStats`。
 
-**音频路由。** 请用 `SyAudioRoute` 和 `onAudioRoute`。原生整数在 Dart 层按平台翻译（`SyAudioRoute.fromNative`），事件里的 `routing` 仍是原生整数，不要跨平台比较：Android 0 扬声器、1 耳机、2 蓝牙、3 听筒；iOS 0 耳机、1 听筒、3 扬声器、5 蓝牙、-1 未知。`setAudioRoute` 两端都只能切 `speaker` 和 `earpiece`，返回 0；耳机和蓝牙返回 -1。Android 会在设备接上且没强制扬声器时上报 `headset` / `bluetooth`。iOS 的蓝牙和有线耳机只上报，主动设置会再回调 `onError` 1004。
+**音频路由。** 请用 `SyAudioRoute` 和 `onAudioRoute`。原生整数在 Dart 层按平台翻译（`SyAudioRoute.fromNative`），事件里的 `routing` 仍是原生整数，不要跨平台比较：Android 0 扬声器、1 耳机、2 蓝牙、3 听筒；iOS 0 耳机、1 听筒、3 扬声器、5 蓝牙、-1 未知。`setAudioRoute` 两端都只能切 `speaker` 和 `earpiece`，返回 0；耳机和蓝牙返回 -1。Android 会在设备接上且没强制扬声器时上报 `headset` / `bluetooth`。iOS 的蓝牙和有线耳机只上报，主动设置会再回调 `onError` 1009（`SyRtcErrorCode.audioRoute`）。
 
 **设备与摄像头。** Android 采集/播放设备来自 `AudioManager`。iOS 采集设备来自 `AVAudioSession.availableInputs`，没有输入口时是空列表。iOS 播放设备只有 `speaker` 和 `earpiece`。`switchCamera`、`useFrontCamera` 两端都有；`useFrontCamera` 在未开摄像头时记住选择。
 
-**屏幕共享。** Android 先弹出 MediaProjection 授权，同意后帧进本地视频轨；-1 表示拒绝或失败。Android 10+ 原生 SDK 自动启动内置的 `mediaProjection` 前台服务（`ScreenCaptureService`，权限和服务都随 SDK manifest 合并，宿主不用声明），并显示一条常驻通知；此时返回 0 表示已提交，开始采集时 `onLocalVideoStateChanged` 事件的 `state` 为 `capturing` 且 `isScreenCapture` 为 true（两端一致），失败 `onError` 1006。停止共享或离开频道时服务自动停止。iOS 是应用内 ReplayKit，帧进 WebRTC；返回 0 只表示调用已发出，失败走 `onError` 1008。这不是跨进程的 Broadcast Extension。
+**屏幕共享。** Android 先弹出 MediaProjection 授权，同意后帧进本地视频轨；-1 表示拒绝或失败。Android 10+ 原生 SDK 自动启动内置的 `mediaProjection` 前台服务（`ScreenCaptureService`，权限和服务都随 SDK manifest 合并，宿主不用声明），并显示一条常驻通知；此时返回 0 表示已提交，开始采集时 `onLocalVideoStateChanged` 事件的 `state` 为 `capturing` 且 `isScreenCapture` 为 true（两端一致），失败 `onError` 1006。停止共享或离开频道时服务自动停止。iOS 是应用内 ReplayKit，帧进 WebRTC；返回 0 只表示调用已发出，失败走 `onError` 1006（两端相同）。这不是跨进程的 Broadcast Extension。
 
 **静音。** `isLocalAudioMuted` / `isLocalVideoMuted` 读原生状态。`isRemoteAudioMuted` / `isRemoteVideoMuted` 两端都查原生：本端屏蔽或对端自己静音都算 true。`onUserMuteAudio` / `onUserMuteVideo` 两端都有，Android 与 iOS 之间互通（信令 `user-media`）。
 

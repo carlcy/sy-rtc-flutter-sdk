@@ -15,6 +15,9 @@
 - Android 屏幕共享：原生 SDK 内置 mediaProjection 前台服务，Android 10+ 自动启停，宿主无需声明。
 - `SyAudioRoute.fromNative` 在 Dart 层按平台翻译原生路由整数。
 - 新增频道属性 `POST /api/rtc/channel/meta/set|get|delete`（用户 JWT）、`switchQualityTier`，以及 Token 业务码 4031/4032/4033。
+- 新增 `SyRtcErrorCode`，`onError` 码两端统一（iOS 原生改了码值：音频路由 1004 → 1009、屏幕共享 1008 → 1006、未知画质 / 附加信息过长 → 1000、视频源未就绪 → 1005 / 1007；被踢两端都报 1004；凭证停用报 4031 / 4032 / 4033；信令错误文本改读服务端 `message` 字段）。
+- 修正 `SyTokenBusinessCode`：4031 暂停（`suspended`）、4032 吊销（`revoked`）、4033 过期（`expired`），与服务端一致。`invalid` / `privilegeDenied` 为已弃用别名；`expired` 由 4032 改为 4033。
+- Token 过期提醒两端一致：读服务端 Token 的 `expireAt`，提前 30 秒 `onTokenPrivilegeWillExpire`，到期 `onRequestToken`。此前 Android 从不回调，iOS 只认 JWT 所以也不回调。
 
 ## 3.1.2
 

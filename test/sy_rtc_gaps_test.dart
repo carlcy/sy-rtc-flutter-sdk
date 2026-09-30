@@ -39,12 +39,9 @@ void main() {
   });
 
   test('token business codes 4031/4032/4033', () {
-    expect(SyTokenBusinessCode.tryParse(4031), SyTokenBusinessCode.invalid);
-    expect(SyTokenBusinessCode.tryParse(4032), SyTokenBusinessCode.expired);
-    expect(
-      SyTokenBusinessCode.tryParse(4033),
-      SyTokenBusinessCode.privilegeDenied,
-    );
+    expect(SyTokenBusinessCode.tryParse(4031), SyTokenBusinessCode.suspended);
+    expect(SyTokenBusinessCode.tryParse(4032), SyTokenBusinessCode.revoked);
+    expect(SyTokenBusinessCode.tryParse(4033), SyTokenBusinessCode.expired);
     expect(SyTokenBusinessCode.tryParse(401), isNull);
     final error = SyTokenException.tryFromCode(4032, '过期');
     expect(error?.businessCode, 4032);
@@ -122,7 +119,7 @@ void main() {
       calls.add(call);
       return <String, dynamic>{
         'code': 4033,
-        'msg': '画质档位不允许',
+        'msg': '访问凭证已过期',
       };
     });
     final room = SyRoomService(

@@ -408,7 +408,7 @@ class SyRtcEngine {
         .cast<SyVideoSizeChangedEvent>();
   }
 
-  /// 错误事件流
+  /// 错误事件流。`errCode` 取值见 [SyRtcErrorCode]，两端相同。
   Stream<SyErrorEvent> get onError {
     return _eventController.stream
         .where((event) => event is SyErrorEvent)
@@ -813,7 +813,7 @@ class SyRtcEngine {
   /// 失败走 `onError`（1006）。Android 9 及以下返回 0 即已启动。
   ///
   /// iOS 使用应用内 ReplayKit，帧进入 WebRTC。返回 0 只表示调用已发出，
-  /// 用户拒绝或启动失败时走 `onError`（1008），不会把返回值改成失败。
+  /// 用户拒绝或启动失败时走 `onError`（1006，[SyRtcErrorCode.screenShare]），不会把返回值改成失败。
   /// 这是应用内采集，不是 Broadcast Upload Extension 的跨进程共享。
   Future<int> startScreenCapture(SyScreenCaptureConfiguration config) async {
     final hasRtc = await hasRtcFeature();
@@ -880,7 +880,7 @@ class SyRtcEngine {
   /// 切换播放路由。
   ///
   /// 返回 0 表示已交给原生。扬声器和听筒两端都可以切。
-  /// 耳机、蓝牙在两端都返回 -1：Android 只检测这些设备，iOS 会额外回调 `onError` 1004。
+  /// 耳机、蓝牙在两端都返回 -1：Android 只检测这些设备，iOS 会额外回调 `onError` 1009（[SyRtcErrorCode.audioRoute]）。
   Future<int> setAudioRoute(SyAudioRoute route) async {
     final value = await _channel.invokeMethod<int>('setAudioRoute', {
       'route': route.name,

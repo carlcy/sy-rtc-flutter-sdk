@@ -238,4 +238,37 @@ void main() {
     ]);
     expect(SyReconnectPolicy.delaysMs, [1000, 2000, 4000, 8000, 16000]);
   });
+
+  test('error codes are the unified cross-platform values', () async {
+    expect(SyRtcErrorCode.invalidArgument, 1000);
+    expect(SyRtcErrorCode.signaling, 1002);
+    expect(SyRtcErrorCode.reconnectFailed, 1003);
+    expect(SyRtcErrorCode.kicked, 1004);
+    expect(SyRtcErrorCode.camera, 1005);
+    expect(SyRtcErrorCode.screenShare, 1006);
+    expect(SyRtcErrorCode.customCapture, 1007);
+    expect(SyRtcErrorCode.audioRoute, 1009);
+    expect(SyRtcErrorCode.forbidden, 403);
+    expect(SyRtcErrorCode.isCredentialBlocked(4032), isTrue);
+    expect(SyRtcErrorCode.isCredentialBlocked(1004), isFalse);
+
+    const channel = MethodChannel('sy_rtc_flutter_sdk');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async => null);
+    addTearDown(() => TestDefaultBinaryMessengerBinding
+        .instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null));
+    final engine = SyRtcEngine();
+    await engine.init('app');
+    final errors = <int>[];
+    final tokenErrors = <SyTokenBusinessCode>[];
+    engine.setEventHandler(SyRtcEventHandler(
+      onError: (code, _) => errors.add(code),
+      onTokenError: (code, _) => tokenErrors.add(code),
+    ));
+    await _emit('onError', {'errCode': 4032, 'errMsg': '访问凭证已吊销'});
+    await _emit('onError', {'errCode': SyRtcErrorCode.kicked, 'errMsg': 'kicked'});
+    expect(errors, [4032, 1004]);
+    expect(tokenErrors, [SyTokenBusinessCode.revoked]);
+  });
 }
