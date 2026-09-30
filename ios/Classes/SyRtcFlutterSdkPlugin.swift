@@ -812,6 +812,10 @@ extension SyRtcFlutterSdkPlugin: SyRtcEventHandler {
     ])
   }
 
+  public func onRtcStats(stats: [String: Any]) {
+    eventChannel?.invokeMethod("onRtcStats", arguments: ["stats": stats])
+  }
+
   public func onLeaveChannel(stats: [String: Any]) {
     eventChannel?.invokeMethod("onLeaveChannel", arguments: ["stats": stats])
   }
