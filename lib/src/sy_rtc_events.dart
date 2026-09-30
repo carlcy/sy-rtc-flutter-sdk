@@ -28,8 +28,7 @@ class SyUserOfflineEvent extends SyRtcEvent {
 class SyVolumeIndicationEvent extends SyRtcEvent {
   final List<Map<String, dynamic>> speakers;
 
-  SyVolumeIndicationEvent({required this.speakers})
-      : super('volumeIndication');
+  SyVolumeIndicationEvent({required this.speakers}) : super('volumeIndication');
 }
 
 /// Token 即将过期事件（30秒前）
@@ -339,7 +338,7 @@ class SyRtcStats {
   final int rxVideoBytes;
   final int userCount;
 
-  /// 统计所属的远端 uid（Android 每个对端一条；iOS 不带，取第一个对端）。
+  /// 统计所属的远端 uid（两端都是每个对端一条）。
   final String? uid;
 
   /// 往返时延，毫秒。没有样本时为 null。
@@ -355,8 +354,24 @@ class SyRtcStats {
   final int? txBitrate;
   final int? rxBitrate;
 
-  /// 两端统一的质量档位。原生没带档位时为 [SyNetworkQualityLevel.unknown]。
+  /// 两端统一的质量档位（[txQuality] 与 [rxQuality] 中较差的一档）。
+  /// 原生没带档位时为 [SyNetworkQualityLevel.unknown]。
   final SyNetworkQualityLevel quality;
+
+  /// 上行档位：RTT + 上行丢包（对端回报的 remote-inbound-rtp）。
+  final SyNetworkQualityLevel txQuality;
+
+  /// 下行档位：本统计周期的下行丢包 + 抖动。
+  final SyNetworkQualityLevel rxQuality;
+
+  /// 上行丢包率（0–1），来自对端回报。没有样本时为 null。
+  final double? txPacketLossRate;
+
+  /// 下行丢包率（0–1），按本统计周期的增量计算。没有新包时为 null。
+  final double? rxPacketLossRate;
+
+  /// 下行抖动，毫秒。没有样本时为 null。
+  final double? jitterMs;
 
   /// 网络类型（目前只有 iOS 在统计里附带：wifi / cellular / ethernet / none）。
   final String? networkType;
@@ -379,6 +394,11 @@ class SyRtcStats {
     this.txBitrate,
     this.rxBitrate,
     this.quality = SyNetworkQualityLevel.unknown,
+    this.txQuality = SyNetworkQualityLevel.unknown,
+    this.rxQuality = SyNetworkQualityLevel.unknown,
+    this.txPacketLossRate,
+    this.rxPacketLossRate,
+    this.jitterMs,
     this.networkType,
     this.raw = const {},
   });
@@ -401,6 +421,13 @@ class SyRtcStats {
     return value.clamp(0.0, 1.0).toDouble();
   }
 
+  static double? _ratio(Object? v) {
+    if (v is! num) return null;
+    final d = v.toDouble();
+    if (d.isNaN) return null;
+    return d.clamp(0.0, 1.0).toDouble();
+  }
+
   factory SyRtcStats.fromMap(Map<Object?, Object?> map) {
     final raw = <String, Object?>{
       for (final entry in map.entries) '${entry.key}': entry.value,
@@ -412,6 +439,11 @@ class SyRtcStats {
       txBitrate: (map['txBitrate'] as num?)?.toInt(),
       rxBitrate: (map['rxBitrate'] as num?)?.toInt(),
       quality: SyNetworkQualityLevel.fromNative(map['quality'] as String?),
+      txQuality: SyNetworkQualityLevel.fromNative(map['txQuality'] as String?),
+      rxQuality: SyNetworkQualityLevel.fromNative(map['rxQuality'] as String?),
+      txPacketLossRate: _ratio(map['txPacketLossRate']),
+      rxPacketLossRate: _ratio(map['rxPacketLossRate']),
+      jitterMs: (map['jitterMs'] as num?)?.toDouble(),
       networkType: map['networkType'] as String?,
       raw: raw,
       duration: (map['duration'] as num?)?.toInt() ?? 0,
@@ -561,8 +593,7 @@ class SyErrorEvent extends SyRtcEvent {
   final int errCode;
   final String errMsg;
 
-  SyErrorEvent({required this.errCode, required this.errMsg})
-      : super('error');
+  SyErrorEvent({required this.errCode, required this.errMsg}) : super('error');
 }
 
 /// `onError(code, message)` 的错误码。与 Android `RtcErrorCode`、iOS `SyRtcErrorCode` 取值相同。
@@ -685,31 +716,31 @@ class SyTokenErrorEvent extends SyRtcEvent {
 
 /// 连接状态枚举
 enum SyConnectionState {
-  disconnected,  // 断开连接
-  connecting,    // 正在连接
-  connected,     // 已连接
-  reconnecting,  // 正在重连
-  failed,        // 连接失败
+  disconnected, // 断开连接
+  connecting, // 正在连接
+  connected, // 已连接
+  reconnecting, // 正在重连
+  failed, // 连接失败
 }
 
 /// 连接状态变化原因
 enum SyConnectionChangedReason {
-  connecting,      // 正在连接
-  joinSuccess,     // 加入成功
-  interrupt,       // 连接中断
-  bannedByServer,  // 被服务器禁止
-  joinFailed,      // 加入失败
-  leaveChannel,    // 离开频道
-  invalidAppId,    // 无效的 AppId
+  connecting, // 正在连接
+  joinSuccess, // 加入成功
+  interrupt, // 连接中断
+  bannedByServer, // 被服务器禁止
+  joinFailed, // 加入失败
+  leaveChannel, // 离开频道
+  invalidAppId, // 无效的 AppId
   invalidChannelName, // 无效的频道名
-  invalidToken,    // 无效的 Token
-  tokenExpired,    // Token 过期
+  invalidToken, // 无效的 Token
+  tokenExpired, // Token 过期
   rejectedByServer, // 被服务器拒绝
   settingProxyServer, // 设置代理服务器
-  renewingToken,   // 更新 Token
+  renewingToken, // 更新 Token
   clientIpAddressChanged, // 客户端 IP 地址变化
   keepAliveTimeout, // 保活超时
-  rejoinSuccess,   // 断线后重连成功（原生 `rejoin_success`）
+  rejoinSuccess, // 断线后重连成功（原生 `rejoin_success`）
 }
 
 /// 把原生 reason 映射到 [SyConnectionChangedReason]。两端 3.2.0 起用同一组字符串：
@@ -849,94 +880,94 @@ SyNetworkQuality syNetworkQualityFromNative(String raw) {
 
 /// 远端音频状态
 enum SyRemoteAudioState {
-  stopped,    // 停止
-  starting,   // 开始
-  decoding,   // 解码中
-  failed,     // 失败
-  frozen,     // 冻结
+  stopped, // 停止
+  starting, // 开始
+  decoding, // 解码中
+  failed, // 失败
+  frozen, // 冻结
 }
 
 /// 远端音频状态原因
 enum SyRemoteAudioStateReason {
-  internal,   // 内部原因
+  internal, // 内部原因
   networkCongestion, // 网络拥塞
-  networkRecovery,    // 网络恢复
-  localMuted,        // 本地静音
-  localUnmuted,     // 本地取消静音
-  remoteMuted,      // 远端静音
-  remoteUnmuted,    // 远端取消静音
-  remoteOffline,    // 远端离线
+  networkRecovery, // 网络恢复
+  localMuted, // 本地静音
+  localUnmuted, // 本地取消静音
+  remoteMuted, // 远端静音
+  remoteUnmuted, // 远端取消静音
+  remoteOffline, // 远端离线
 }
 
 /// 远端视频状态
 enum SyRemoteVideoState {
-  stopped,    // 停止
-  starting,   // 开始
-  decoding,   // 解码中
-  failed,     // 失败
-  frozen,     // 冻结
+  stopped, // 停止
+  starting, // 开始
+  decoding, // 解码中
+  failed, // 失败
+  frozen, // 冻结
 }
 
 /// 远端视频状态原因
 enum SyRemoteVideoStateReason {
-  internal,   // 内部原因
+  internal, // 内部原因
   networkCongestion, // 网络拥塞
-  networkRecovery,    // 网络恢复
-  localMuted,        // 本地静音
-  localUnmuted,     // 本地取消静音
-  remoteMuted,       // 远端静音
-  remoteUnmuted,    // 远端取消静音
-  remoteOffline,    // 远端离线
+  networkRecovery, // 网络恢复
+  localMuted, // 本地静音
+  localUnmuted, // 本地取消静音
+  remoteMuted, // 远端静音
+  remoteUnmuted, // 远端取消静音
+  remoteOffline, // 远端离线
 }
 
 /// 本地音频流状态
 enum SyLocalAudioStreamState {
-  stopped,    // 停止
-  recording,  // 录制中
-  encoding,   // 编码中
-  failed,     // 失败
+  stopped, // 停止
+  recording, // 录制中
+  encoding, // 编码中
+  failed, // 失败
 }
 
 /// 本地音频流错误
 enum SyLocalAudioStreamError {
-  ok,                    // 正常
-  failure,               // 失败
-  deviceNoPermission,    // 设备无权限
-  deviceBusy,            // 设备忙碌
-  recordFailure,         // 录制失败
-  encodeFailure,         // 编码失败
+  ok, // 正常
+  failure, // 失败
+  deviceNoPermission, // 设备无权限
+  deviceBusy, // 设备忙碌
+  recordFailure, // 录制失败
+  encodeFailure, // 编码失败
 }
 
 /// 本地视频流状态
 enum SyLocalVideoStreamState {
-  stopped,    // 停止
-  capturing,  // 采集中
-  encoding,   // 编码中
-  failed,     // 失败
+  stopped, // 停止
+  capturing, // 采集中
+  encoding, // 编码中
+  failed, // 失败
 }
 
 /// 本地视频流错误
 enum SyLocalVideoStreamError {
-  ok,                    // 正常
-  failure,               // 失败
-  deviceNoPermission,    // 设备无权限
-  deviceBusy,            // 设备忙碌
-  captureFailure,        // 采集失败
-  encodeFailure,         // 编码失败
+  ok, // 正常
+  failure, // 失败
+  deviceNoPermission, // 设备无权限
+  deviceBusy, // 设备忙碌
+  captureFailure, // 采集失败
+  encodeFailure, // 编码失败
 }
 
 /// 流发布状态
 enum SyStreamPublishState {
-  idle,         // 未发布
-  noPublished,  // 未发布
-  publishing,   // 发布中
-  published,    // 已发布
+  idle, // 未发布
+  noPublished, // 未发布
+  publishing, // 发布中
+  published, // 已发布
 }
 
 /// 流订阅状态
 enum SyStreamSubscribeState {
-  idle,          // 未订阅
-  noSubscribed,  // 未订阅
-  subscribing,   // 订阅中
-  subscribed,    // 已订阅
+  idle, // 未订阅
+  noSubscribed, // 未订阅
+  subscribing, // 订阅中
+  subscribed, // 已订阅
 }

@@ -1,5 +1,6 @@
 ## 3.2.0
 
+- 网络质量上下行分开（原生 Android / iOS 同步）：tx = RTT + 上行丢包，rx = 本周期下行丢包 + 抖动。`SyRtcStats` 新增 `txQuality` / `rxQuality` / `txPacketLossRate` / `rxPacketLossRate` / `jitterMs`。
 - 插件、example、文档中的版本统一为 3.2.0。客户写 `sy_rtc_flutter_sdk: ^3.2.0`。
 - Android 坐标为 `com.github.carlcy:sy-rtc-android-sdk:v3.2.0`。iOS 目标为 `SyRtcSDK 3.2.0`；CocoaPods trunk 还没有该 pod，插件编译内置源码（对齐 `sy-rtc-ios-sdk` 分支 `cursor/versioned-spm-cocoapods-3ccc`）。
 - 接通原生能力：网络质量（RTT+丢包，无样本为 `unknown`）、0–255 音量、音频路由、前后摄、屏幕共享、静音查询、流附加信息、数据流、自定义采集开关、重连回调。

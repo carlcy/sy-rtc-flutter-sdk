@@ -70,6 +70,32 @@ void main() {
     expect(SyRtcStats.fromMap(<Object?, Object?>{}).packetLossRate, isNull);
   });
 
+  test('tx / rx quality and loss are parsed separately', () {
+    final s = SyRtcStats.fromMap(<Object?, Object?>{
+      'uid': 'u2',
+      'quality': 'bad',
+      'txQuality': 'good',
+      'rxQuality': 'bad',
+      'txPacketLossRate': 0.01,
+      'rxPacketLossRate': 0.12,
+      'jitterMs': 150,
+    });
+    expect(s.txQuality, SyNetworkQualityLevel.good);
+    expect(s.rxQuality, SyNetworkQualityLevel.bad);
+    expect(s.quality, SyNetworkQualityLevel.bad);
+    expect(s.txPacketLossRate, closeTo(0.01, 1e-9));
+    expect(s.rxPacketLossRate, closeTo(0.12, 1e-9));
+    expect(s.jitterMs, 150.0);
+
+    final old = SyRtcStats.fromMap(
+        <Object?, Object?>{'quality': 'good', 'rxPacketLossRate': 3});
+    expect(old.txQuality, SyNetworkQualityLevel.unknown);
+    expect(old.rxQuality, SyNetworkQualityLevel.unknown);
+    expect(old.txPacketLossRate, isNull);
+    expect(old.rxPacketLossRate, 1.0);
+    expect(old.jitterMs, isNull);
+  });
+
   test('audio route ints are translated per platform in Dart', () {
     expect(
       SyAudioRoute.fromNative(routing: 0, platform: TargetPlatform.android),

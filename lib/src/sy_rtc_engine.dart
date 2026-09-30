@@ -293,7 +293,7 @@ class SyRtcEngine {
 
   /// 网络质量事件流。
   ///
-  /// 由本机 RTT 和丢包算出。请读事件里的 [SyNetworkQualityEvent.txLevel] /
+  /// 上行由 RTT + 上行丢包算出，下行由本周期下行丢包 + 抖动算出。请读事件里的 [SyNetworkQualityEvent.txLevel] /
   /// [SyNetworkQualityEvent.rxLevel]（两端统一的 [SyNetworkQualityLevel]）。
   /// 没有样本时为 unknown。旧字段 txQuality / rxQuality 保留原生名字。
   Stream<SyNetworkQualityEvent> get onNetworkQuality {
@@ -377,9 +377,10 @@ class SyRtcEngine {
       .cast<SyReconnectedEvent>();
 
   /// 重连次数用完。
-  Stream<SyReconnectFailedEvent> get onReconnectFailed => _eventController.stream
-      .where((event) => event is SyReconnectFailedEvent)
-      .cast<SyReconnectFailedEvent>();
+  Stream<SyReconnectFailedEvent> get onReconnectFailed =>
+      _eventController.stream
+          .where((event) => event is SyReconnectFailedEvent)
+          .cast<SyReconnectFailedEvent>();
 
   Stream<SyUserMuteVideoEvent> get onUserMuteVideo {
     return _eventController.stream
@@ -885,7 +886,8 @@ class SyRtcEngine {
   /// iOS 只能用 [setAudioRoute] 切到扬声器或听筒；蓝牙和有线耳机只在回调里出现。
   /// Android 能上报扬声器、听筒、耳机、蓝牙；主动切换同样只有扬声器和听筒。
   Future<SyAudioRoute> getAudioRoute() async {
-    final value = await _channel.invokeMethod<Map<Object?, Object?>>('getAudioRoute');
+    final value =
+        await _channel.invokeMethod<Map<Object?, Object?>>('getAudioRoute');
     return SyAudioRoute.fromNative(
       name: value?['route'] as String?,
       routing: (value?['routing'] as num?)?.toInt(),
@@ -1026,7 +1028,8 @@ class SyRtcEngine {
 
   /// 开始客户端录音。返回 0 成功，-1 失败（格式不支持、已在录制等）。规则见 [SyAudioRecordingConfiguration]。
   Future<int> startAudioRecording(SyAudioRecordingConfiguration config) async {
-    final r = await _channel.invokeMethod<int>('startAudioRecording', config.toMap());
+    final r =
+        await _channel.invokeMethod<int>('startAudioRecording', config.toMap());
     return r ?? -1;
   }
 
@@ -1086,7 +1089,6 @@ class SyRtcEngine {
   Future<String?> getStreamExtraInfo() {
     return _channel.invokeMethod<String>('getStreamExtraInfo');
   }
-
 
   Future<dynamic> _handleMethodCall(MethodCall call) async {
     try {
