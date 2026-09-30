@@ -294,19 +294,19 @@ engine.setEventHandler(SyRtcEventHandler(
 
 **音频路由。** 请用 `SyAudioRoute` 和 `onAudioRoute`。原生整数在 Dart 层按平台翻译（`SyAudioRoute.fromNative`），事件里的 `routing` 仍是原生整数，不要跨平台比较：Android 0 扬声器、1 耳机、2 蓝牙、3 听筒；iOS 0 耳机、1 听筒、3 扬声器、5 蓝牙、-1 未知。`setAudioRoute` 两端都只能切 `speaker` 和 `earpiece`，返回 0；耳机和蓝牙返回 -1。Android 会在设备接上且没强制扬声器时上报 `headset` / `bluetooth`。iOS 的蓝牙和有线耳机只上报，主动设置会再回调 `onError` 1004。
 
-**设备与摄像头。** Android 采集/播放设备来自 `AudioManager`。iOS 采集设备来自 `AVAudioSession.availableInputs`，没有输入口时是空列表。iOS 播放设备只有 `speaker` 和 `earpiece`。`switchCamera` 两端都有。`useFrontCamera` 只在 iOS 生效，Android 返回 -2。
+**设备与摄像头。** Android 采集/播放设备来自 `AudioManager`。iOS 采集设备来自 `AVAudioSession.availableInputs`，没有输入口时是空列表。iOS 播放设备只有 `speaker` 和 `earpiece`。`switchCamera`、`useFrontCamera` 两端都有；`useFrontCamera` 在未开摄像头时记住选择。
 
 **屏幕共享。** Android 先弹出 MediaProjection 授权，同意后帧进本地视频轨；-1 表示拒绝或失败。Android 10+ 原生 SDK 自动启动内置的 `mediaProjection` 前台服务（`ScreenCaptureService`，权限和服务都随 SDK manifest 合并，宿主不用声明），并显示一条常驻通知；此时返回 0 表示已提交，开始采集时 `onLocalVideoStateChanged` 事件的 `state` 为 `capturing` 且 `isScreenCapture` 为 true（两端一致），失败 `onError` 1006。停止共享或离开频道时服务自动停止。iOS 是应用内 ReplayKit，帧进 WebRTC；返回 0 只表示调用已发出，失败走 `onError` 1008。这不是跨进程的 Broadcast Extension。
 
-**静音。** `isLocalAudioMuted` / `isLocalVideoMuted` 读原生状态。`isRemoteAudioMuted` / `isRemoteVideoMuted` 只在 Android 有结果，iOS 返回 null。iOS 另有 `onUserMuteVideo`；Android 的远端视频静音走 `onRemoteVideoStateChanged`。
+**静音。** `isLocalAudioMuted` / `isLocalVideoMuted` 读原生状态。`isRemoteAudioMuted` / `isRemoteVideoMuted` 两端都查原生：本端屏蔽或对端自己静音都算 true。`onUserMuteAudio` / `onUserMuteVideo` 两端都有，Android 与 iOS 之间互通（信令 `user-media`）。
 
-**数据与附加信息。** `createDataStream` / `sendStreamMessage` 两端都走 DataChannel。`sendSei` 只在 Android 存在：DataChannel 消息，带 `SYSEI` 前缀，不是码流 SEI；iOS 返回 -2。`setStreamExtraInfo` 走频道信令。Android 未进房返回 -1；iOS 没有返回值，插件在引擎存在时返回 0。`getStreamExtraInfo` 只在 iOS 有值，Android 返回 null。
+**数据与附加信息。** `createDataStream` / `sendStreamMessage` 两端都走 DataChannel。`sendSei` 两端都有：DataChannel 消息，带 `SYSEI` 前缀，不是码流 SEI，对端回调 `onSeiMessage`。`setStreamExtraInfo` 走频道消息（`sy-extra:` 前缀），Android 与 iOS 互通，新成员进房会补发；超过 1024 字节返回 -2。Android 未进房返回 -1；iOS 没有返回值，插件在引擎存在时返回 0。`getStreamExtraInfo` 两端都返回本端最近一次设置的值。
 
 **自定义采集。** `enableCustomVideoCapture(true)` 会停掉摄像头。送帧仍是原生类型：Android `org.webrtc.VideoFrame`，iOS `CVPixelBuffer`。方法通道不接收像素，避免假装帧已经进编码器。美颜提亮仍用 `setBeautyEffectOptions`。自定义帧处理器同样是原生钩子，不会把帧回调到 Dart。
 
 **重连。** 听 `onConnectionStateChanged` 的 `nativeReason`，以及 `onRejoinChannelSuccess`。Android 信令最多再试 3 次，用尽后 `onError` 1003；ICE 会 `restartIce`，恢复后重进房回调。iOS 信令按 1、2、4、8、16 秒退避，最多 5 次，用尽后 `nativeReason` 为 `signaling_give_up`，`onError` 1005。
 
-**网络类型。** `getNetworkType` 在 iOS 上可能是 `wifi`、`cellular`、`ethernet`、`none`、`unknown`（进房后才开始监视）。Android 3.2.0 的同名方法固定返回 `unknown`。
+**网络类型。** `getNetworkType` 在 iOS 上可能是 `wifi`、`cellular`、`ethernet`、`none`、`unknown`（进房后才开始监视）。Android 用 `ConnectivityManager` 实时判断，取值相同。
 
 ## 示例
 

@@ -244,7 +244,7 @@ class SySeiMessageEvent extends SyRtcEvent {
   }) : super('seiMessage');
 }
 
-/// iOS 远端视频静音。Android 没有这个回调，视频静音走远端视频状态。
+/// 远端用户开关了自己的视频（两端互通，信令 `user-media`）。
 class SyUserMuteVideoEvent extends SyRtcEvent {
   final String uid;
   final bool muted;

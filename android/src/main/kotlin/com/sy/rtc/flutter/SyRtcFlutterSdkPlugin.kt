@@ -451,7 +451,10 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
         }
       }
       "switchCamera" -> result.success(engine?.switchCamera() ?: -1)
-      "useFrontCamera" -> result.success(-2)
+      "useFrontCamera" -> {
+        val front = call.argument<Boolean>("front")
+        if (front == null) result.success(-1) else result.success(engine?.useFrontCamera(front) ?: -1)
+      }
       "enableCustomVideoCapture" -> {
         val enabled = call.argument<Boolean>("enabled") ?: false
         result.success(engine?.enableCustomVideoCapture(enabled) ?: -1)
@@ -460,7 +463,7 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
         val extra = call.argument<String>("extra") ?: ""
         result.success(engine?.setStreamExtraInfo(extra) ?: -1)
       }
-      "getStreamExtraInfo" -> result.success(null)
+      "getStreamExtraInfo" -> result.success(engine?.getStreamExtraInfo())
       "sendSei" -> {
         val streamId = call.argument<Int>("streamId") ?: 0
         val data = call.argument<ByteArray>("data")
@@ -669,6 +672,10 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
 
       override fun onUserMuteAudio(uid: String, muted: Boolean) {
         invokeOnMain("onUserMuteAudio", mapOf("uid" to uid, "muted" to muted))
+      }
+
+      override fun onUserMuteVideo(uid: String, muted: Boolean) {
+        invokeOnMain("onUserMuteVideo", mapOf("uid" to uid, "muted" to muted))
       }
 
       override fun onNetworkQuality(uid: String, txQuality: String, rxQuality: String) {

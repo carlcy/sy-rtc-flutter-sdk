@@ -3,7 +3,8 @@
 - 插件、example、文档中的版本统一为 3.2.0。客户写 `sy_rtc_flutter_sdk: ^3.2.0`。
 - Android 坐标为 `com.github.carlcy:sy-rtc-android-sdk:v3.2.0`。iOS 目标为 `SyRtcSDK 3.2.0`；CocoaPods trunk 还没有该 pod，插件编译内置源码（对齐 `sy-rtc-ios-sdk` 分支 `cursor/versioned-spm-cocoapods-3ccc`）。
 - 接通原生能力：网络质量（RTT+丢包，无样本为 `unknown`）、0–255 音量、音频路由、前后摄、屏幕共享、静音查询、流附加信息、数据流、自定义采集开关、重连回调。
-- 两端不一致的地方保持原样并写在文档里：质量档位名字和阈值、路由原始整数、iOS 只能切扬声器/听筒、Android `getNetworkType` 仍是 `unknown`、`sendSei` 仅 Android（DataChannel，不是码流 SEI）、远端静音查询仅 Android、重连次数 Android 3 次 / iOS 5 次。
+- 两端仍不一致的地方写在文档里：质量阈值（名字已在 Dart 层统一）、路由原始整数（Dart 层已统一为 `SyAudioRoute`）、iOS 只能切扬声器/听筒、重连次数 Android 3 次 / iOS 5 次。
+- 两端补齐并互通：`useFrontCamera`、`getStreamExtraInfo`、`isRemoteAudioMuted` / `isRemoteVideoMuted`、`sendSei` / `onSeiMessage`（DataChannel `SYSEI` 前缀，不是码流 SEI）、`onUserMuteVideo`；Android `getNetworkType` 改为真实值。Android 与 iOS 用同一套静音信令（`user-media`）和附加信息格式（`sy-extra:`），跨端进房能互相收到。
 - 去掉音量固定 0、空网络质量、以及 iOS 写死的「默认麦克风」列表。iOS 采集设备改为 `AVAudioSession.availableInputs`。
 - example 的 Android 构建升到 Gradle 8.14、AGP 8.11.1、Kotlin 2.2.20，以通过当前 Flutter 的最低版本检查。
 - 统一 Dart 类型：`SyNetworkQualityLevel`（unknown/excellent/good/poor/bad/down）与 `onNetworkQualityLevel`；Android `medium`/`die` 与 iOS `poor`/`down` 在 Dart 层映射到同一档位，旧 `SyNetworkQuality` 保留兼容。

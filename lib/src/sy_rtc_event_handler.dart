@@ -126,7 +126,7 @@ class SyRtcEventHandler {
   /// 流附加信息。同一条原文仍会先走 [onChannelMessage]。
   final void Function(String uid, String extra)? onStreamExtraInfoUpdated;
 
-  /// Android DataChannel SEI 风格消息，不是码流 SEI。iOS 没有这个回调。
+  /// `sendSei` 发来的 DataChannel 消息（已去掉 `SYSEI` 前缀），不是码流 SEI。两端都会回调。
   /// 原始字节（Android 含 `SYSEI` 前缀）仍会通过 [onStreamMessage] 给出。
   final void Function(String uid, int streamId, List<int> data)? onSeiMessage;
 

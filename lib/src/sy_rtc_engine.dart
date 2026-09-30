@@ -154,10 +154,11 @@ class SyRtcEngine {
     return value ?? false;
   }
 
-  /// 指定远端的音频是否被本端静音。
+  /// 指定远端的音频是否处于静音。
   ///
-  /// Android 查询原生记录。iOS 没有这个查询，返回 null。
-  /// 最近一次 [onUserMuteAudio] 仍可从 [remoteAudioMuted] 读取。
+  /// 两端都查询原生记录：本端屏蔽了该路（[muteRemoteAudioStream] /
+  /// [muteAllRemoteAudioStreams]），或对端自己静音（[onUserMuteAudio]），都返回 true。
+  /// 引擎未创建时为 false。
   Future<bool?> isRemoteAudioMuted(String uid) async {
     return _channel.invokeMethod<bool>('isRemoteAudioMuted', {'uid': uid});
   }
@@ -359,7 +360,7 @@ class SyRtcEngine {
         .cast<SySeiMessageEvent>();
   }
 
-  /// iOS 远端视频静音。Android 没有这个事件。
+  /// 远端用户开关了自己的视频。Android / iOS 都会回调，两端互通。
   Stream<SyUserMuteVideoEvent> get onUserMuteVideo {
     return _eventController.stream
         .where((event) => event is SyUserMuteVideoEvent)
@@ -571,7 +572,7 @@ class SyRtcEngine {
   ///
   /// iOS 用 `NWPathMonitor`，可能是 `wifi`、`cellular`、`ethernet`、`none`、`unknown`。
   /// 监视器在进房后才启动，在那之前是 `unknown`。
-  /// Android 3.2.0 的 `getNetworkType()` 固定返回 `unknown`，插件不另外猜测 Wi-Fi 或蜂窝。
+  /// Android 用 `ConnectivityManager` 实时判断，取值名称与 iOS 相同。
   Future<String> getNetworkType() async {
     final result = await _channel.invokeMethod('getNetworkType');
     return result as String? ?? 'unknown';
@@ -723,9 +724,9 @@ class SyRtcEngine {
     return value ?? false;
   }
 
-  /// 指定远端的视频是否被本端静音。
+  /// 指定远端的视频是否处于静音。
   ///
-  /// Android 查询原生记录。iOS 没有这个查询，返回 null。
+  /// 两端含义相同：本端屏蔽了该路视频，或对端关了视频（[onUserMuteVideo]），都返回 true。
   Future<bool?> isRemoteVideoMuted(String uid) async {
     return _channel.invokeMethod<bool>('isRemoteVideoMuted', {'uid': uid});
   }
@@ -741,8 +742,8 @@ class SyRtcEngine {
 
   /// 指定使用前置或后置摄像头。
   ///
-  /// iOS 调用 `useFrontCamera`，有引擎时返回 0。
-  /// Android 没有这个方法，返回 -2。请改用 [switchCamera]。
+  /// 两端都调原生 `useFrontCamera`。未开摄像头时记住选择，开摄像头时生效。
+  /// iOS 有引擎时返回 0。Android：0 成功或已提交切换，-1 当前是屏幕共享或自定义采集。
   Future<int> useFrontCamera(bool front) async {
     final value = await _channel.invokeMethod<int>('useFrontCamera', {
       'front': front,
@@ -1033,8 +1034,8 @@ class SyRtcEngine {
 
   /// 经 DataChannel 发送带 `SYSEI` 前缀的二进制。不是 H.264 码流 SEI。
   ///
-  /// Android：0 已写入打开的通道，-1 流不存在或通道未打开。
-  /// iOS 没有 `sendSei`，返回 -2。请改用 [sendStreamMessage]。
+  /// 两端格式相同，对端回调 [onSeiMessage]（同一条也会以原始字节进 `onStreamMessage`）。
+  /// 返回 0 已写入打开的通道，-1 流不存在或通道未打开。
   Future<int> sendSei(int streamId, Uint8List data) async {
     final value = await _channel.invokeMethod<int>('sendSei', {
       'streamId': streamId,
@@ -1045,7 +1046,9 @@ class SyRtcEngine {
 
   /// 通过频道信令广播本端流附加信息。
   ///
-  /// Android：未进房返回 -1，已发送返回 0。
+  /// 两端线格式相同（频道消息 `sy-extra:` 前缀），可互通；新成员进房时 SDK 会补发。
+  /// UTF-8 超过 1024 字节返回 -2。
+  /// Android：未进房返回 -1（值已保存，进房后补发），已发送返回 0。
   /// iOS 的原生方法没有返回值；引擎存在时插件返回 0，不表示对端已经收到。
   Future<int> setStreamExtraInfo(String extra) async {
     final value = await _channel.invokeMethod<int>('setStreamExtraInfo', {
@@ -1056,7 +1059,7 @@ class SyRtcEngine {
 
   /// 读取本端最近一次流附加信息。
   ///
-  /// iOS 返回原生保存的字符串。Android 没有这个查询，返回 null。
+  /// 两端都返回原生保存的字符串（未设置时为空串）。引擎未创建时为 null。
   Future<String?> getStreamExtraInfo() {
     return _channel.invokeMethod<String>('getStreamExtraInfo');
   }

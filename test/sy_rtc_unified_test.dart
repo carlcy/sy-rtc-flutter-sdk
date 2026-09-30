@@ -151,4 +151,39 @@ void main() {
     expect(stats.single.quality, SyNetworkQualityLevel.good);
     expect(routes, [SyAudioRoute.earpiece]);
   });
+
+  test('cross-platform mute video and SEI events reach the handler', () async {
+    const channel = MethodChannel('sy_rtc_flutter_sdk');
+    final calls = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      calls.add(call);
+      return call.method == 'sendSei' ? 0 : null;
+    });
+    addTearDown(() => TestDefaultBinaryMessengerBinding
+        .instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null));
+    final engine = SyRtcEngine();
+    await engine.init('app');
+    final muted = <String>[];
+    final sei = <List<int>>[];
+    engine.setEventHandler(SyRtcEventHandler(
+      onUserMuteVideo: (uid, m) => muted.add('$uid:$m'),
+      onSeiMessage: (uid, streamId, data) => sei.add(data),
+    ));
+    await _emit('onUserMuteVideo', {'uid': 'u2', 'muted': true});
+    // Android sends List<int>, iOS sends [UInt8] (also a list on the Dart side).
+    await _emit('onSeiMessage', {
+      'uid': 'u2',
+      'streamId': 1,
+      'data': [1, 2, 3],
+    });
+    expect(muted, ['u2:true']);
+    expect(sei, [
+      [1, 2, 3]
+    ]);
+    expect(await engine.sendSei(1, Uint8List.fromList([9])), 0);
+    expect(calls.last.method, 'sendSei');
+    expect(calls.last.arguments['streamId'], 1);
+  });
 }

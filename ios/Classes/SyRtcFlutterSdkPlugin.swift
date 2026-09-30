@@ -621,8 +621,13 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
     case "isLocalVideoMuted":
       result(engine?.isLocalVideoMuted() ?? false)
 
-    case "isRemoteAudioMuted", "isRemoteVideoMuted":
-      result(nil)
+    case "isRemoteAudioMuted":
+      let uid = ((call.arguments as? [String: Any])?["uid"] as? String) ?? ""
+      result(engine?.isRemoteAudioMuted(uid: uid) ?? false)
+
+    case "isRemoteVideoMuted":
+      let uid = ((call.arguments as? [String: Any])?["uid"] as? String) ?? ""
+      result(engine?.isRemoteVideoMuted(uid: uid) ?? false)
 
     case "getAudioRoute":
       let routing = engine?.getAudioRoute().rawValue ?? SyRtcAudioRoute.unknown.rawValue
@@ -673,6 +678,10 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
         result(-1)
         break
       }
+      if extra.utf8.count > 1024 {
+        result(-2)
+        break
+      }
       engine.setStreamExtraInfo(extra)
       result(0)
 
@@ -680,7 +689,14 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
       result(engine?.getStreamExtraInfo())
 
     case "sendSei":
-      result(-2)
+      guard let engine = engine,
+            let args = call.arguments as? [String: Any],
+            let streamId = args["streamId"] as? Int,
+            let data = args["data"] as? FlutterStandardTypedData else {
+        result(-1)
+        break
+      }
+      result(engine.sendSei(streamId: streamId, data: data.data))
 
     case "setQualityTier":
       guard let engine = engine, let tier = (call.arguments as? [String: Any])?["tier"] as? String else {
@@ -907,6 +923,14 @@ extension SyRtcFlutterSdkPlugin: SyRtcEventHandler {
 
   public func onStreamMessage(uid: String, streamId: Int, data: Data) {
     eventChannel?.invokeMethod("onStreamMessage", arguments: [
+      "uid": uid,
+      "streamId": streamId,
+      "data": [UInt8](data)
+    ])
+  }
+
+  public func onSeiMessage(uid: String, streamId: Int, data: Data) {
+    eventChannel?.invokeMethod("onSeiMessage", arguments: [
       "uid": uid,
       "streamId": streamId,
       "data": [UInt8](data)
