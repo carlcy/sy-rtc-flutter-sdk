@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -44,7 +43,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SY RTC Example',
+      title: 'SY RTC $kSyRtcFlutterSdkVersion',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.blue,
@@ -81,6 +80,7 @@ class _RtcVerifyPageState extends State<RtcVerifyPage> {
   bool _muted = false;
   bool _videoOn = false;
   bool _busy = false;
+  SyQualityTier _tier = SyQualityTier.sd;
   String _status = '未初始化';
   String _micPerm = '未知';
   String _camPerm = '未知';
@@ -121,6 +121,20 @@ class _RtcVerifyPageState extends State<RtcVerifyPage> {
       },
       onServerMuteAudio: (uid, muted) {
         _log('服务端静音 uid=$uid muted=$muted');
+      },
+      onTokenPrivilegeWillExpire: () {
+        _log('Token 即将过期，正在续期');
+        unawaited(_renewToken());
+      },
+      onRequestToken: () {
+        _log('Token 已过期，正在续期');
+        unawaited(_renewToken());
+      },
+      onTokenError: (code, message) {
+        _log('Token 错误 ${code.value} $message');
+      },
+      onNetworkQuality: (uid, tx, rx) {
+        _log('网络 $uid tx=$tx rx=$rx');
       },
       onError: (code, message) {
         _log('错误 $code $message');
@@ -203,16 +217,7 @@ class _RtcVerifyPageState extends State<RtcVerifyPage> {
       _status = '获取 Token...';
     });
     try {
-      final config = AppConfig(
-        apiBaseUrl: _apiBase.text.trim(),
-        signalingUrl: _signaling.text.trim(),
-        appId: _appId.text.trim(),
-        appSecret: _appSecret.text.trim(),
-      );
-      final token = await TokenService(config).fetchRtcToken(
-        channelId: _channel.text.trim(),
-        uid: _uid.text.trim(),
-      );
+      final token = await _fetchToken();
       final preview = token.length > 16 ? token.substring(0, 16) : token;
       _log('Token ok ($preview...)');
       await _engine.join(_channel.text.trim(), _uid.text.trim(), token);
@@ -249,6 +254,46 @@ class _RtcVerifyPageState extends State<RtcVerifyPage> {
     await _engine.muteLocalAudio(next);
     setState(() => _muted = next);
     _log(next ? '已静音' : '取消静音');
+  }
+
+  Future<String> _fetchToken({SyQualityTier? tier}) {
+    final config = AppConfig(
+      apiBaseUrl: _apiBase.text.trim(),
+      signalingUrl: _signaling.text.trim(),
+      appId: _appId.text.trim(),
+      appSecret: _appSecret.text.trim(),
+    );
+    return TokenService(config).fetchRtcToken(
+      channelId: _channel.text.trim(),
+      uid: _uid.text.trim(),
+      qualityTier: (tier ?? _tier).wireValue,
+    );
+  }
+
+  Future<void> _renewToken() async {
+    try {
+      final token = await _fetchToken();
+      await _engine.renewToken(token);
+      _log('Token 已续期（${_tier.wireValue}）');
+    } catch (e) {
+      _log('续期失败: $e');
+    }
+  }
+
+  Future<void> _switchQuality(SyQualityTier tier) async {
+    try {
+      if (_joined) {
+        final token = await _fetchToken(tier: tier);
+        await _engine.renewToken(token);
+        _log('已按 ${tier.wireValue} 续期 Token');
+      }
+      await _engine.setQualityTier(tier);
+      if (!mounted) return;
+      setState(() => _tier = tier);
+      _log('画质切换为 ${tier.wireValue}');
+    } catch (e) {
+      _log('画质切换失败: $e');
+    }
   }
 
   Future<void> _enableVideo() async {
@@ -301,7 +346,7 @@ class _RtcVerifyPageState extends State<RtcVerifyPage> {
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A2E),
       appBar: AppBar(
-        title: const Text('SY RTC 验证'),
+        title: Text('SY RTC $kSyRtcFlutterSdkVersion'),
         backgroundColor: const Color(0xFF16213E),
       ),
       body: SafeArea(
@@ -315,10 +360,10 @@ class _RtcVerifyPageState extends State<RtcVerifyPage> {
                 color: const Color(0x33FF9800),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Text(
-                '指向本地 Go 后端 :8080（iOS 模拟器 127.0.0.1，Android 模拟器 10.0.2.2）。'
-                '真机请改成电脑局域网 IP。模拟器经常没有摄像头。',
-                style: TextStyle(color: Colors.orangeAccent, fontSize: 12),
+              child: Text(
+                '默认 API：${defaultApiBase()}。可用 --dart-define=SY_API_BASE= 覆盖。'
+                '当前画质档：${_tier.wireValue}。模拟器经常没有摄像头。',
+                style: const TextStyle(color: Colors.orangeAccent, fontSize: 12),
               ),
             ),
             Text(_status,
@@ -345,6 +390,11 @@ class _RtcVerifyPageState extends State<RtcVerifyPage> {
                 _btn('离开', _joined ? _leave : null),
                 _btn(_muted ? '取消静音' : '静音', _joined ? _toggleMute : null),
                 _btn('启用视频', _initialized ? _enableVideo : null),
+                _btn('续期 Token', _initialized ? _renewToken : null),
+                _btn('语音', _initialized ? () => _switchQuality(SyQualityTier.audio) : null),
+                _btn('标清', _initialized ? () => _switchQuality(SyQualityTier.sd) : null),
+                _btn('高清', _initialized ? () => _switchQuality(SyQualityTier.hd) : null),
+                _btn('超清', _initialized ? () => _switchQuality(SyQualityTier.fhd) : null),
               ],
             ),
             const SizedBox(height: 16),

@@ -1,6 +1,5 @@
-/// SY RTC 配置扩展类
-/// 
-/// 包含所有音频、视频、直播相关的配置类
+/// SY RTC 配置扩展类，包含音频、视频相关的配置。
+library;
 
 /// 音频配置
 enum SyAudioProfile {

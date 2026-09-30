@@ -1,6 +1,5 @@
-/// 视频画质预设
-/// 
-/// 提供多种画质选项，确保直播流畅性
+/// 视频画质预设。提供多种画质选项，确保直播流畅性。
+library;
 
 /// 画质等级
 enum SyVideoQualityLevel {
@@ -152,6 +151,23 @@ class SyVideoQualityPreset {
     }
   }
   
+  /// 对应后端 `POST /api/rtc/token?qualityTier=` 的档位。
+  ///
+  /// 后端只有 `audio` / `sd` / `hd` / `fhd`，没有单独的 4K 档，
+  /// 因此 [SyVideoQualityLevel.ultraHd] 也映射到 [SyQualityTier.fhd]。
+  SyQualityTier get qualityTier {
+    switch (level) {
+      case SyVideoQualityLevel.smooth:
+      case SyVideoQualityLevel.standard:
+        return SyQualityTier.sd;
+      case SyVideoQualityLevel.hd:
+        return SyQualityTier.hd;
+      case SyVideoQualityLevel.uhd:
+      case SyVideoQualityLevel.ultraHd:
+        return SyQualityTier.fhd;
+    }
+  }
+
   /// 转换为视频编码配置Map（用于原生调用）
   Map<String, dynamic> toEncoderConfigMap() {
     return {
@@ -165,6 +181,57 @@ class SyVideoQualityPreset {
       'degradationPreference': 'balanced',
       'mirrorMode': 'auto',
     };
+  }
+}
+
+/// 后端 Token 画质档位。
+///
+/// 与 `POST /api/rtc/token` 的查询参数 `qualityTier` 一致：
+/// `audio`、`sd`、`hd`、`fhd`。
+enum SyQualityTier {
+  /// 纯音频，不推视频。
+  audio,
+
+  /// 标清（约 480p）。
+  sd,
+
+  /// 高清（约 720p）。
+  hd,
+
+  /// 超清（约 1080p）。
+  fhd;
+
+  /// 传给后端的字符串。
+  String get wireValue => name;
+
+  /// 解析后端返回的档位字符串；无法识别时返回 null。
+  static SyQualityTier? tryParse(String raw) {
+    switch (raw.trim().toLowerCase()) {
+      case 'audio':
+        return SyQualityTier.audio;
+      case 'sd':
+        return SyQualityTier.sd;
+      case 'hd':
+        return SyQualityTier.hd;
+      case 'fhd':
+        return SyQualityTier.fhd;
+      default:
+        return null;
+    }
+  }
+
+  /// 该档位对应的本地视频预设。`audio` 没有视频预设。
+  SyVideoQualityPreset? get videoPreset {
+    switch (this) {
+      case SyQualityTier.audio:
+        return null;
+      case SyQualityTier.sd:
+        return SyVideoQualityPreset.standard();
+      case SyQualityTier.hd:
+        return SyVideoQualityPreset.hd();
+      case SyQualityTier.fhd:
+        return SyVideoQualityPreset.uhd();
+    }
   }
 }
 

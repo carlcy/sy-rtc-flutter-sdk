@@ -3,17 +3,17 @@
 // @formatter:on
 
 group = "com.sy.rtc.flutter"
-version = "3.1.1"
+version = "3.2.0"
 
 buildscript {
-    ext.kotlin_version = "2.0.21"
+    ext.kotlin_version = "2.2.20"
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:8.7.3")
+        classpath("com.android.tools.build:gradle:8.11.1")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
     }
 }
@@ -22,6 +22,9 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // 同一坐标已 publishToMavenLocal 时先用本地产物（当前 JitPack 还没有 tag v3.2.0）。
+        // 客户机器上没有这份本地包时，解析会落到下面的 JitPack。
+        mavenLocal()
         maven { url 'https://jitpack.io' }  // JitPack 仓库（用于 Android SDK）
     }
 }
@@ -66,27 +69,12 @@ android {
 }
 
 dependencies {
-    // 依赖 Android SDK（从 JitPack）
-    // 说明：Flutter 插件可以直接声明依赖，这样用户无需在应用层手动添加依赖，避免集成出错。
-    def findLocalAar = { File startDir ->
-        def dir = startDir
-        while (dir != null) {
-            def candidate = new File(dir, "rtc-android-sdk/build/outputs/aar/sy-rtc-android-sdk-release.aar")
-            if (candidate.exists()) return candidate
-            dir = dir.parentFile
-        }
-        return null
-    }
+    // 与插件 3.2.0 对齐。发布前维护者必须先把该 tag 推到 JitPack。
+    // https://jitpack.io/#carlcy/sy-rtc-android-sdk/v3.2.0
+    // api：依赖会传递给宿主 App，业务工程不必再声明这份坐标，
+    // 但宿主必须能解析 https://jitpack.io （见 README「平台配置」）。
+    api("com.github.carlcy:sy-rtc-android-sdk:v3.2.0")
 
-    def localAar = findLocalAar(projectDir)
-    if (localAar != null) {
-        // 注意：Flutter 插件自身是 AAR，AGP 不允许把“直接本地 aar 依赖”打进另一个 AAR（会导致产物损坏）。
-        // 这里使用 compileOnly 仅用于编译期；运行期由宿主 App 提供 SDK 依赖（JitPack 或本地 AAR）。
-        compileOnly(files(localAar))
-    } else {
-        api("com.github.carlcy:sy-rtc-android-sdk:v3.1.0")
-    }
-    
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")
 }

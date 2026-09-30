@@ -1,13 +1,18 @@
 package com.sy.rtc.flutter
 
+import android.app.Activity
+import android.media.projection.MediaProjectionManager
 import android.os.Handler
 import android.os.Looper
 import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
+import io.flutter.plugin.common.PluginRegistry
 import com.sy.rtc.sdk.RtcEngine
 import com.sy.rtc.sdk.RtcEventHandler
 import com.sy.rtc.sdk.RtcClientRole
@@ -20,7 +25,7 @@ import com.sy.rtc.sdk.BeautyOptions
 import com.sy.rtc.sdk.ScreenCaptureConfiguration
 
 /** SyRtcFlutterSdkPlugin */
-class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
+class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   private lateinit var channel : MethodChannel
   private var engine: RtcEngine? = null
   private var eventChannel: MethodChannel? = null
@@ -29,6 +34,47 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
   private var flutterContext: android.content.Context? = null
   private var pluginBinding: FlutterPlugin.FlutterPluginBinding? = null
   private val mainHandler = Handler(Looper.getMainLooper())
+  private var activity: Activity? = null
+  private var activityBinding: ActivityPluginBinding? = null
+  private var pendingScreenResult: Result? = null
+  private var pendingScreenConfig: ScreenCaptureConfiguration? = null
+  private val screenCaptureRequestCode = 0x5359
+
+  private val activityResultListener =
+    PluginRegistry.ActivityResultListener { requestCode, resultCode, data ->
+      if (requestCode != screenCaptureRequestCode) {
+        false
+      } else {
+        val flutterResult = pendingScreenResult
+        val config = pendingScreenConfig
+        pendingScreenResult = null
+        pendingScreenConfig = null
+        if (resultCode != Activity.RESULT_OK || data == null || config == null) {
+          flutterResult?.success(-1)
+        } else {
+          flutterResult?.success(engine?.startScreenCapture(data, config) ?: -1)
+        }
+        true
+      }
+    }
+
+  private fun audioRouteName(routing: Int): String = when (routing) {
+    0 -> "speaker"
+    1 -> "headset"
+    2 -> "bluetooth"
+    3 -> "earpiece"
+    else -> "unknown"
+  }
+
+  private fun screenConfig(args: Map<*, *>?): ScreenCaptureConfiguration {
+    return ScreenCaptureConfiguration(
+      width = args?.get("width") as? Int ?: 0,
+      height = args?.get("height") as? Int ?: 0,
+      frameRate = args?.get("frameRate") as? Int ?: 15,
+      bitrate = args?.get("bitrate") as? Int ?: 0,
+      captureMouseCursor = args?.get("captureMouseCursor") as? Boolean ?: true
+    )
+  }
 
   private fun invokeOnMain(method: String, arguments: Any?) {
     mainHandler.post {
@@ -151,6 +197,18 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
         val roleStr = call.argument<String>("role") ?: "audience"
         val role = if (roleStr == "host") RtcClientRole.HOST else RtcClientRole.AUDIENCE
         engine?.setClientRole(role)
+        result.success(true)
+      }
+      "setChannelProfile" -> {
+        val profile = call.argument<String>("profile") ?: "communication"
+        engine?.setChannelProfile(profile)
+        result.success(true)
+      }
+      "enableAudioVolumeIndication" -> {
+        val interval = call.argument<Int>("interval") ?: 200
+        val smooth = call.argument<Int>("smooth") ?: 3
+        val reportVad = call.argument<Boolean>("reportVad") ?: false
+        engine?.enableAudioVolumeIndication(interval, smooth, reportVad)
         result.success(true)
       }
       "setVideoEncoderConfiguration" -> {
@@ -345,32 +403,76 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
         result.success(true)
       }
       "startScreenCapture" -> {
-        val args = call.arguments as? Map<*, *>
-        val config = ScreenCaptureConfiguration(
-          width = args?.get("width") as? Int ?: 0,
-          height = args?.get("height") as? Int ?: 0,
-          frameRate = args?.get("frameRate") as? Int ?: 15,
-          bitrate = args?.get("bitrate") as? Int ?: 0,
-          captureMouseCursor = args?.get("captureMouseCursor") as? Boolean ?: true
-        )
-        engine?.startScreenCapture(config)
-        result.success(true)
+        val act = activity
+        val mgr = act?.getSystemService(android.content.Context.MEDIA_PROJECTION_SERVICE) as? MediaProjectionManager
+        if (act == null || mgr == null || engine == null) {
+          result.success(-1)
+        } else if (pendingScreenResult != null) {
+          result.success(-1)
+        } else {
+          pendingScreenConfig = screenConfig(call.arguments as? Map<*, *>)
+          pendingScreenResult = result
+          act.startActivityForResult(mgr.createScreenCaptureIntent(), screenCaptureRequestCode)
+        }
       }
       "stopScreenCapture" -> {
         engine?.stopScreenCapture()
         result.success(true)
       }
       "updateScreenCaptureConfiguration" -> {
-        val args = call.arguments as? Map<*, *>
-        val config = ScreenCaptureConfiguration(
-          width = args?.get("width") as? Int ?: 0,
-          height = args?.get("height") as? Int ?: 0,
-          frameRate = args?.get("frameRate") as? Int ?: 15,
-          bitrate = args?.get("bitrate") as? Int ?: 0,
-          captureMouseCursor = args?.get("captureMouseCursor") as? Boolean ?: true
-        )
-        engine?.updateScreenCaptureConfiguration(config)
+        engine?.updateScreenCaptureConfiguration(screenConfig(call.arguments as? Map<*, *>))
         result.success(true)
+      }
+      "isLocalAudioMuted" -> result.success(engine?.isLocalAudioMuted() ?: false)
+      "isLocalVideoMuted" -> result.success(engine?.isLocalVideoMuted() ?: false)
+      "isRemoteAudioMuted" -> {
+        val uid = call.argument<String>("uid") ?: ""
+        result.success(engine?.isRemoteAudioMuted(uid) ?: false)
+      }
+      "isRemoteVideoMuted" -> {
+        val uid = call.argument<String>("uid") ?: ""
+        result.success(engine?.isRemoteVideoMuted(uid) ?: false)
+      }
+      "getAudioRoute" -> {
+        val routing = engine?.getAudioRoute() ?: -1
+        result.success(mapOf("routing" to routing, "route" to audioRouteName(routing)))
+      }
+      "setAudioRoute" -> {
+        when (call.argument<String>("route")) {
+          "speaker" -> {
+            engine?.setEnableSpeakerphone(true)
+            result.success(0)
+          }
+          "earpiece" -> {
+            engine?.setEnableSpeakerphone(false)
+            result.success(0)
+          }
+          else -> result.success(-1)
+        }
+      }
+      "switchCamera" -> result.success(engine?.switchCamera() ?: -1)
+      "useFrontCamera" -> result.success(-2)
+      "enableCustomVideoCapture" -> {
+        val enabled = call.argument<Boolean>("enabled") ?: false
+        result.success(engine?.enableCustomVideoCapture(enabled) ?: -1)
+      }
+      "setStreamExtraInfo" -> {
+        val extra = call.argument<String>("extra") ?: ""
+        result.success(engine?.setStreamExtraInfo(extra) ?: -1)
+      }
+      "getStreamExtraInfo" -> result.success(null)
+      "sendSei" -> {
+        val streamId = call.argument<Int>("streamId") ?: 0
+        val data = call.argument<ByteArray>("data")
+        if (data == null) {
+          result.success(-1)
+        } else {
+          result.success(engine?.sendSei(streamId, data) ?: -1)
+        }
+      }
+      "setQualityTier" -> {
+        val tier = call.argument<String>("tier") ?: ""
+        result.success(engine?.setVideoQuality(tier) ?: -1)
       }
       "setBeautyEffectOptions" -> {
         val args = call.arguments as? Map<*, *>
@@ -565,9 +667,88 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
         invokeOnMain("onServerMuteAudio", mapOf("uid" to uid, "muted" to muted))
       }
 
+      override fun onUserMuteAudio(uid: String, muted: Boolean) {
+        invokeOnMain("onUserMuteAudio", mapOf("uid" to uid, "muted" to muted))
+      }
+
+      override fun onNetworkQuality(uid: String, txQuality: String, rxQuality: String) {
+        invokeOnMain("onNetworkQuality", mapOf(
+          "uid" to uid,
+          "txQuality" to txQuality,
+          "rxQuality" to rxQuality
+        ))
+      }
+
+      override fun onTokenPrivilegeWillExpire() {
+        invokeOnMain("onTokenPrivilegeWillExpire", null)
+      }
+
+      override fun onRequestToken() {
+        invokeOnMain("onRequestToken", null)
+      }
+
+      override fun onRejoinChannelSuccess(channelId: String, uid: String, elapsed: Int) {
+        invokeOnMain("onRejoinChannelSuccess", mapOf(
+          "channelId" to channelId,
+          "uid" to uid,
+          "elapsed" to elapsed
+        ))
+      }
+
+      override fun onRtcStats(stats: Map<String, Any?>) {
+        invokeOnMain("onRtcStats", mapOf("stats" to stats))
+      }
+
+      override fun onLocalAudioStateChanged(state: String, error: String) {
+        invokeOnMain("onLocalAudioStateChanged", mapOf("state" to state, "error" to error))
+      }
+
+      override fun onRemoteAudioStateChanged(uid: String, state: String, reason: String, elapsed: Int) {
+        invokeOnMain("onRemoteAudioStateChanged", mapOf(
+          "uid" to uid,
+          "state" to state,
+          "reason" to reason,
+          "elapsed" to elapsed
+        ))
+      }
+
+      override fun onLocalVideoStateChanged(state: String, error: String) {
+        invokeOnMain("onLocalVideoStateChanged", mapOf("state" to state, "error" to error))
+      }
+
+      override fun onRemoteVideoStateChanged(uid: String, state: String, reason: String, elapsed: Int) {
+        invokeOnMain("onRemoteVideoStateChanged", mapOf(
+          "uid" to uid,
+          "state" to state,
+          "reason" to reason,
+          "elapsed" to elapsed
+        ))
+      }
+
+      override fun onAudioRoutingChanged(routing: Int) {
+        invokeOnMain("onAudioRoutingChanged", mapOf(
+          "routing" to routing,
+          "route" to audioRouteName(routing)
+        ))
+      }
+
       override fun onVolumeIndication(speakers: List<VolumeInfo>) {
-        val speakersList = speakers.map { mapOf("uid" to it.uid, "volume" to it.volume) }
+        val speakersList = speakers.map {
+          mapOf("uid" to it.uid, "volume" to it.volume, "vad" to 0)
+        }
         invokeOnMain("onVolumeIndication", mapOf("speakers" to speakersList))
+      }
+
+      override fun onStreamExtraInfoUpdated(uid: String, extra: String) {
+        invokeOnMain("onStreamExtraInfoUpdated", mapOf("uid" to uid, "extra" to extra))
+      }
+
+      override fun onSeiMessage(uid: String, streamId: Int, data: ByteArray) {
+        invokeOnMain("onSeiMessage", mapOf(
+          "uid" to uid,
+          "streamId" to streamId,
+          "data" to data.toList()
+        ))
       }
 
       override fun onError(code: Int, message: String) {
@@ -667,7 +848,32 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler {
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
     channel.setMethodCallHandler(null)
+    pendingScreenResult?.success(-1)
+    pendingScreenResult = null
     engine?.release()
     engine = null
+  }
+
+  override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+    activity = binding.activity
+    activityBinding = binding
+    binding.addActivityResultListener(activityResultListener)
+  }
+
+  override fun onDetachedFromActivityForConfigChanges() {
+    onDetachedFromActivity()
+  }
+
+  override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+    onAttachedToActivity(binding)
+  }
+
+  override fun onDetachedFromActivity() {
+    activityBinding?.removeActivityResultListener(activityResultListener)
+    activityBinding = null
+    activity = null
+    pendingScreenResult?.success(-1)
+    pendingScreenResult = null
+    pendingScreenConfig = null
   }
 }

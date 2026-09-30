@@ -45,22 +45,35 @@ class SyConnectionStateChangedEvent extends SyRtcEvent {
   final SyConnectionState state;
   final SyConnectionChangedReason reason;
 
+  /// 原生原文字符串。Android 例如 `signaling`、`ice`、`rejoined`；
+  /// iOS 例如 `signaling`、`signaling_give_up`、`rejoin_success`、`ice_checking:<uid>`。
+  /// [reason] 只覆盖能对上枚举名的情况，对不上时保持 [SyConnectionChangedReason.connecting]。
+  final String nativeReason;
+
   SyConnectionStateChangedEvent({
     required this.state,
     required this.reason,
+    this.nativeReason = '',
   }) : super('connectionStateChanged');
 }
 
 /// 网络质量事件
+///
+/// [txQuality] / [rxQuality] 由原生字符串按名字映射。两端档位和阈值不同，见 [SyNetworkQuality]。
+/// 对不上的字符串记为 [SyNetworkQuality.unknown]，原文留在 [txQualityRaw] / [rxQualityRaw]。
 class SyNetworkQualityEvent extends SyRtcEvent {
   final String uid;
   final SyNetworkQuality txQuality;
   final SyNetworkQuality rxQuality;
+  final String txQualityRaw;
+  final String rxQualityRaw;
 
   SyNetworkQualityEvent({
     required this.uid,
     required this.txQuality,
     required this.rxQuality,
+    this.txQualityRaw = '',
+    this.rxQualityRaw = '',
   }) : super('networkQuality');
 }
 
@@ -117,11 +130,65 @@ class SyLocalVideoStateChangedEvent extends SyRtcEvent {
 }
 
 /// 音频路由变化事件
+///
+/// [route] 是两端归一后的名字。[routing] 仍是原生原始整数，两端含义不同：
+/// Android 0 扬声器、1 耳机、2 蓝牙、3 听筒；
+/// iOS 0 耳机、1 听筒、3 扬声器、5 蓝牙、-1 未知。
 class SyAudioRoutingChangedEvent extends SyRtcEvent {
   final int routing;
+  final SyAudioRoute route;
 
-  SyAudioRoutingChangedEvent({required this.routing})
-      : super('audioRoutingChanged');
+  SyAudioRoutingChangedEvent({
+    required this.routing,
+    this.route = SyAudioRoute.unknown,
+  }) : super('audioRoutingChanged');
+}
+
+/// 播放路由。由插件把两端不同的整数翻译成同一个枚举。
+enum SyAudioRoute {
+  speaker,
+  earpiece,
+  headset,
+  bluetooth,
+  unknown;
+
+  static SyAudioRoute parse(String? name) {
+    for (final value in SyAudioRoute.values) {
+      if (value.name == name) return value;
+    }
+    return SyAudioRoute.unknown;
+  }
+}
+
+/// 对端通过信令更新的流附加信息。同一条原文仍会先走频道消息。
+class SyStreamExtraInfoEvent extends SyRtcEvent {
+  final String uid;
+  final String extra;
+
+  SyStreamExtraInfoEvent({required this.uid, required this.extra})
+      : super('streamExtraInfo');
+}
+
+/// Android DataChannel 上的 SEI 风格消息。不是 H.264 码流 SEI。iOS 不会发这个事件。
+class SySeiMessageEvent extends SyRtcEvent {
+  final String uid;
+  final int streamId;
+  final List<int> data;
+
+  SySeiMessageEvent({
+    required this.uid,
+    required this.streamId,
+    required this.data,
+  }) : super('seiMessage');
+}
+
+/// iOS 远端视频静音。Android 没有这个回调，视频静音走远端视频状态。
+class SyUserMuteVideoEvent extends SyRtcEvent {
+  final String uid;
+  final bool muted;
+
+  SyUserMuteVideoEvent({required this.uid, required this.muted})
+      : super('userMuteVideo');
 }
 
 /// 数据流消息事件
@@ -354,6 +421,67 @@ class SyErrorEvent extends SyRtcEvent {
       : super('error');
 }
 
+/// 业务后端约定的 Token 错误码。
+///
+/// 出现在 `POST /api/rtc/token` 的 `code`，以及信令/引擎 `onError` 的错误码。
+/// 展示给用户时优先用服务端 `msg`；下面的说明只用于客户端分支。
+enum SyTokenBusinessCode {
+  /// 4031 Token 无效（签名错误或格式不对）。
+  invalid(4031),
+
+  /// 4032 Token 已过期。
+  expired(4032),
+
+  /// 4033 Token 权限不足（角色或画质档位不被允许）。
+  privilegeDenied(4033);
+
+  final int value;
+
+  const SyTokenBusinessCode(this.value);
+
+  static SyTokenBusinessCode? tryParse(int? code) {
+    switch (code) {
+      case 4031:
+        return SyTokenBusinessCode.invalid;
+      case 4032:
+        return SyTokenBusinessCode.expired;
+      case 4033:
+        return SyTokenBusinessCode.privilegeDenied;
+      default:
+        return null;
+    }
+  }
+}
+
+/// Token 业务错误。仍然是 [Exception]，旧的 `on Exception` 可以接住。
+class SyTokenException implements Exception {
+  SyTokenException(this.code, this.message);
+
+  final SyTokenBusinessCode code;
+  final String message;
+
+  int get businessCode => code.value;
+
+  static SyTokenException? tryFromCode(int? code, String? message) {
+    final parsed = SyTokenBusinessCode.tryParse(code);
+    if (parsed == null) return null;
+    final msg = (message == null || message.isEmpty) ? parsed.name : message;
+    return SyTokenException(parsed, msg);
+  }
+
+  @override
+  String toString() => 'SyTokenException($businessCode): $message';
+}
+
+/// Token 业务错误事件。在通用 [SyErrorEvent] 之外再发一次，方便按码分支。
+class SyTokenErrorEvent extends SyRtcEvent {
+  SyTokenErrorEvent({required this.code, required this.message})
+      : super('tokenError');
+
+  final SyTokenBusinessCode code;
+  final String message;
+}
+
 /// 连接状态枚举
 enum SyConnectionState {
   disconnected,  // 断开连接
@@ -382,15 +510,38 @@ enum SyConnectionChangedReason {
   keepAliveTimeout, // 保活超时
 }
 
-/// 网络质量枚举
+/// 网络质量枚举。名字与原生字符串一致，插件不把一端的档位改写成另一端。
+///
+/// 没有 RTT 也没有丢包样本时，两端都回调 `unknown`。
+///
+/// Android（丢包为 0–100 的百分比，RTT 为毫秒）：
+/// `die` 丢包 ≥ 30 或 RTT ≥ 1000；`bad` ≥ 15 或 ≥ 500；
+/// `medium` ≥ 8 或 ≥ 300；`good` ≥ 3 或 ≥ 150；否则 `excellent`。
+///
+/// iOS（丢包为 0–1 的比例，RTT 为毫秒）：
+/// `down` 丢包 ≥ 0.5 或 RTT ≥ 2000；`bad` ≥ 0.2 或 ≥ 600；
+/// `poor` ≥ 0.08 或 ≥ 250；`good` ≥ 0.02 或 ≥ 100；否则 `excellent`。
+///
+/// 上下行目前用的是同一组统计，所以一次回调里的 tx 与 rx 相同。
+/// `veryBad` 保留给旧的枚举名，当前两端原生都不会发出这个字符串。
 enum SyNetworkQuality {
-  unknown,   // 未知
-  excellent, // 优秀
-  good,      // 良好
-  poor,      // 较差
-  bad,       // 差
-  veryBad,   // 很差
-  down,      // 无法连接
+  unknown,
+  excellent,
+  good,
+  medium,
+  poor,
+  bad,
+  veryBad,
+  down,
+  die,
+}
+
+/// 把原生质量字符串映射成枚举。无法识别时返回 [SyNetworkQuality.unknown]。
+SyNetworkQuality syNetworkQualityFromNative(String raw) {
+  for (final value in SyNetworkQuality.values) {
+    if (value.name == raw) return value;
+  }
+  return SyNetworkQuality.unknown;
 }
 
 /// 远端音频状态
