@@ -137,10 +137,23 @@ class SyLocalVideoStateChangedEvent extends SyRtcEvent {
   final SyLocalVideoStreamState state;
   final SyLocalVideoStreamError error;
 
+  /// 原生原始状态字符串（Android 屏幕共享为 `screen_capturing`）。
+  final String nativeState;
+
+  /// 原生原始错误字符串（iOS 屏幕共享为 `screen`，自定义采集为 `custom`）。
+  final String nativeError;
+
   SyLocalVideoStateChangedEvent({
     required this.state,
     required this.error,
+    this.nativeState = '',
+    this.nativeError = '',
   }) : super('localVideoStateChanged');
+
+  /// 两端统一：本地视频正在采集屏幕。
+  bool get isScreenCapture =>
+      state == SyLocalVideoStreamState.capturing &&
+      (nativeState == 'screen_capturing' || nativeError == 'screen');
 }
 
 /// 音频路由变化事件

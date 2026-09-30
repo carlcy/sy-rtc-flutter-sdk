@@ -296,7 +296,7 @@ engine.setEventHandler(SyRtcEventHandler(
 
 **设备与摄像头。** Android 采集/播放设备来自 `AudioManager`。iOS 采集设备来自 `AVAudioSession.availableInputs`，没有输入口时是空列表。iOS 播放设备只有 `speaker` 和 `earpiece`。`switchCamera` 两端都有。`useFrontCamera` 只在 iOS 生效，Android 返回 -2。
 
-**屏幕共享。** Android 先弹出 MediaProjection 授权，同意后帧进本地视频轨；返回 0 表示已启动，-1 表示拒绝或失败。SDK 没有 `mediaProjection` 前台服务，Android 10 及以上可能还要宿主自己声明。iOS 是应用内 ReplayKit，帧进 WebRTC；返回 0 只表示调用已发出，失败走 `onError` 1008。这不是跨进程的 Broadcast Extension。
+**屏幕共享。** Android 先弹出 MediaProjection 授权，同意后帧进本地视频轨；-1 表示拒绝或失败。Android 10+ 原生 SDK 自动启动内置的 `mediaProjection` 前台服务（`ScreenCaptureService`，权限和服务都随 SDK manifest 合并，宿主不用声明），并显示一条常驻通知；此时返回 0 表示已提交，开始采集时 `onLocalVideoStateChanged` 事件的 `state` 为 `capturing` 且 `isScreenCapture` 为 true（两端一致），失败 `onError` 1006。停止共享或离开频道时服务自动停止。iOS 是应用内 ReplayKit，帧进 WebRTC；返回 0 只表示调用已发出，失败走 `onError` 1008。这不是跨进程的 Broadcast Extension。
 
 **静音。** `isLocalAudioMuted` / `isLocalVideoMuted` 读原生状态。`isRemoteAudioMuted` / `isRemoteVideoMuted` 只在 Android 有结果，iOS 返回 null。iOS 另有 `onUserMuteVideo`；Android 的远端视频静音走 `onRemoteVideoStateChanged`。
 

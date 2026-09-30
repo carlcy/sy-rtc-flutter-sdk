@@ -129,6 +129,23 @@ void main() {
     await _emit('onAudioRoutingChanged', {'routing': 1});
     debugDefaultTargetPlatformOverride = null;
 
+    final videoEvents = <SyLocalVideoStateChangedEvent>[];
+    final sub = engine.events
+        .where((e) => e is SyLocalVideoStateChangedEvent)
+        .cast<SyLocalVideoStateChangedEvent>()
+        .listen(videoEvents.add);
+    await _emit('onLocalVideoStateChanged',
+        {'state': 'screen_capturing', 'error': ''}); // Android
+    await _emit('onLocalVideoStateChanged',
+        {'state': 'capturing', 'error': 'screen'}); // iOS
+    await _emit('onLocalVideoStateChanged',
+        {'state': 'capturing', 'error': 'ok'}); // camera
+    await Future<void>.delayed(Duration.zero);
+    await sub.cancel();
+    expect(videoEvents.map((e) => e.state),
+        everyElement(SyLocalVideoStreamState.capturing));
+    expect(videoEvents.map((e) => e.isScreenCapture), [true, true, false]);
+
     expect(levels, [SyNetworkQualityLevel.down]);
     expect(stats.single.packetLossRate, closeTo(0.02, 1e-9));
     expect(stats.single.quality, SyNetworkQualityLevel.good);

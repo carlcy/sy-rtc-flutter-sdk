@@ -8,6 +8,7 @@
 - example 的 Android 构建升到 Gradle 8.14、AGP 8.11.1、Kotlin 2.2.20，以通过当前 Flutter 的最低版本检查。
 - 统一 Dart 类型：`SyNetworkQualityLevel`（unknown/excellent/good/poor/bad/down）与 `onNetworkQualityLevel`；Android `medium`/`die` 与 iOS `poor`/`down` 在 Dart 层映射到同一档位，旧 `SyNetworkQuality` 保留兼容。
 - `SyRtcStats` 增加 `uid`、`rttMs`、`packetLossRate`（统一 0–1）、码率、统一档位、`networkType`、`raw`。修复 `onRtcStats` / `onLeaveChannel` 的 Map 强转导致统计被丢弃；iOS 插件补发 `onRtcStats`。
+- Android 屏幕共享：原生 SDK 内置 mediaProjection 前台服务，Android 10+ 自动启停，宿主无需声明。
 - `SyAudioRoute.fromNative` 在 Dart 层按平台翻译原生路由整数。
 - 新增频道属性 `POST /api/rtc/channel/meta/set|get|delete`（用户 JWT）、`switchQualityTier`，以及 Token 业务码 4031/4032/4033。
 

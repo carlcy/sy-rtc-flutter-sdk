@@ -791,9 +791,12 @@ class SyRtcEngine {
   /// 开始屏幕共享（需要 rtc 产品权限）。
   ///
   /// Android 会先弹出 MediaProjection 授权。用户同意后，插件把 Intent 交给
-  /// `startScreenCapture(intent, config)`，帧进入本地视频轨。返回 0 表示采集已启动，
-  /// -1 表示没有 Activity、用户拒绝或创建失败。本 SDK 没有 mediaProjection 前台服务；
-  /// Android 10 及以上系统可能因此拒绝采集，需要宿主自行声明该服务。
+  /// `startScreenCapture(intent, config)`，帧进入本地视频轨。-1 表示没有 Activity、
+  /// 用户拒绝或创建失败。Android 10+ 原生 SDK 会自动启动内置的 mediaProjection
+  /// 前台服务（已随 SDK manifest 合并，宿主无需声明），服务进入前台后才开始采集：
+  /// 此时返回 0 表示已提交，真正开始时 [onLocalVideoStateChanged] 的
+  /// [SyLocalVideoStateChangedEvent.isScreenCapture] 为 true，
+  /// 失败走 `onError`（1006）。Android 9 及以下返回 0 即已启动。
   ///
   /// iOS 使用应用内 ReplayKit，帧进入 WebRTC。返回 0 只表示调用已发出，
   /// 用户拒绝或启动失败时走 `onError`（1008），不会把返回值改成失败。
@@ -1257,16 +1260,23 @@ class SyRtcEngine {
         case 'onLocalVideoStateChanged':
           final stateStr = call.arguments['state'] as String? ?? 'stopped';
           final errorStr = call.arguments['error'] as String? ?? 'ok';
+          // Android 屏幕共享上报 `screen_capturing`；iOS 上报 `capturing` + error `screen`。
+          final normalizedState =
+              stateStr == 'screen_capturing' ? 'capturing' : stateStr;
           final state = SyLocalVideoStreamState.values.firstWhere(
-            (e) => e.toString().split('.').last == stateStr,
+            (e) => e.toString().split('.').last == normalizedState,
             orElse: () => SyLocalVideoStreamState.stopped,
           );
           final error = SyLocalVideoStreamError.values.firstWhere(
             (e) => e.toString().split('.').last == errorStr,
             orElse: () => SyLocalVideoStreamError.ok,
           );
-          final event =
-              SyLocalVideoStateChangedEvent(state: state, error: error);
+          final event = SyLocalVideoStateChangedEvent(
+            state: state,
+            error: error,
+            nativeState: stateStr,
+            nativeError: errorStr,
+          );
           _eventController.add(event);
           _eventHandler?.onLocalVideoStateChanged?.call(state, error);
           break;
