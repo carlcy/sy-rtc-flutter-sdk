@@ -1024,15 +1024,10 @@ class SyRtcEngine {
 
   // ==================== 音频录制 ====================
 
-  /// 开始客户端录音
-  Future<void> startAudioRecording(SyAudioRecordingConfiguration config) async {
-    await _channel.invokeMethod('startAudioRecording', {
-      'filePath': config.filePath,
-      'sampleRate': config.sampleRate,
-      'channels': config.channels,
-      'codecType': config.codecType.toString().split('.').last,
-      'quality': config.quality.toString().split('.').last,
-    });
+  /// 开始客户端录音。返回 0 成功，-1 失败（格式不支持、已在录制等）。规则见 [SyAudioRecordingConfiguration]。
+  Future<int> startAudioRecording(SyAudioRecordingConfiguration config) async {
+    final r = await _channel.invokeMethod<int>('startAudioRecording', config.toMap());
+    return r ?? -1;
   }
 
   /// 停止客户端录音

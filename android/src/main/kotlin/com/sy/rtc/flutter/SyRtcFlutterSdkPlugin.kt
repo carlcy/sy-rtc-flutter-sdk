@@ -569,7 +569,9 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
           sampleRate = args?.get("sampleRate") as? Int ?: 32000,
           channels = args?.get("channels") as? Int ?: 1,
           codecType = args?.get("codecType") as? String ?: "aacLc",
-          quality = args?.get("quality") as? String ?: "medium"
+          quality = args?.get("quality") as? String ?: "medium",
+          includeLocal = args?.get("includeLocal") as? Boolean ?: true,
+          includeRemote = args?.get("includeRemote") as? Boolean ?: true
         )
         result.success(engine?.startAudioRecording(config) ?: -1)
       }

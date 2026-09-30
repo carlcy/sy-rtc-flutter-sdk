@@ -84,22 +84,35 @@ enum SyVideoMirrorModeType {
   disabled, // 禁用
 }
 
-/// 音频录制配置
+/// 本地录音配置。两端原生 SDK 规则相同：
+///
+/// - [codecType]：[SyAudioCodecType.aacLc] 输出 AAC（MPEG-4，文件建议 `.m4a`）；[SyAudioCodecType.wav] 输出 16 bit WAV。
+///   HE-AAC 两端都没有实现，传入时原生回调 `onError(1000)`，[SyRtcEngine.startAudioRecording] 返回 -1。不支持 mp3。
+/// - 频道内：录 WebRTC 管线里的 PCM（本端采集 + 远端解码）混成单声道，不另开麦克风，
+///   [includeLocal] / [includeRemote] 控制是否包含本端、远端。本端静音时不录本端，本端静音了某远端时不录他。
+/// - 频道外：只录麦克风，仅 AAC。频道外开始的录音 join 后请重新开始。
+/// - [channels] 目前只支持 1；[quality]：low 32 kbps、medium 64 kbps、high 128 kbps（仅 AAC）。leave 时自动停止。
 class SyAudioRecordingConfiguration {
   /// 文件路径
   final String filePath;
 
-  /// 采样率（Hz）
+  /// 采样率（Hz），8000–48000
   final int sampleRate;
 
-  /// 声道数（1=单声道，2=双声道）
+  /// 声道数：目前只支持 1（混音输出为单声道）
   final int channels;
 
   /// 编码格式
   final SyAudioCodecType codecType;
 
-  /// 录音质量
+  /// 录音质量（AAC 码率）
   final SyAudioRecordingQuality quality;
+
+  /// 频道内录音是否包含本端采集
+  final bool includeLocal;
+
+  /// 频道内录音是否混入远端声音
+  final bool includeRemote;
 
   SyAudioRecordingConfiguration({
     required this.filePath,
@@ -107,14 +120,37 @@ class SyAudioRecordingConfiguration {
     this.channels = 1,
     this.codecType = SyAudioCodecType.aacLc,
     this.quality = SyAudioRecordingQuality.medium,
+    this.includeLocal = true,
+    this.includeRemote = true,
   });
+
+  /// 传给原生的参数。
+  Map<String, Object> toMap() => {
+        'filePath': filePath,
+        'sampleRate': sampleRate,
+        'channels': channels,
+        'codecType': codecType.name,
+        'quality': quality.name,
+        'includeLocal': includeLocal,
+        'includeRemote': includeRemote,
+      };
 }
 
-/// 音频编码格式
+/// 录音编码格式
 enum SyAudioCodecType {
-  aacLc,    // AAC-LC
-  heAac,    // HE-AAC
-  heAacV2,  // HE-AAC v2
+  /// AAC-LC（.m4a）
+  aacLc,
+
+  /// 未实现：原生返回 -1 并回调 onError(1000)
+  @Deprecated('两端都未实现 HE-AAC，请用 aacLc 或 wav')
+  heAac,
+
+  /// 未实现：原生返回 -1 并回调 onError(1000)
+  @Deprecated('两端都未实现 HE-AAC v2，请用 aacLc 或 wav')
+  heAacV2,
+
+  /// 16 bit PCM WAV
+  wav,
 }
 
 /// 录音质量

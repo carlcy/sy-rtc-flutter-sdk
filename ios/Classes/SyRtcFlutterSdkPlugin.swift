@@ -574,7 +574,9 @@ public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {
           sampleRate: args["sampleRate"] as? Int ?? 32000,
           channels: args["channels"] as? Int ?? 1,
           codecType: args["codecType"] as? String ?? "aacLc",
-          quality: args["quality"] as? String ?? "medium"
+          quality: args["quality"] as? String ?? "medium",
+          includeLocal: args["includeLocal"] as? Bool ?? true,
+          includeRemote: args["includeRemote"] as? Bool ?? true
         )
         result(engine?.startAudioRecording(config) ?? -1)
       } else {

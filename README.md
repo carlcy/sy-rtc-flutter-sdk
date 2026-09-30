@@ -286,6 +286,8 @@ await room.deleteChannelMeta(channelId: channelId, key: 'title');
 
 **网络质量。** 请用 `onNetworkQualityLevel`（或事件的 `txLevel` / `rxLevel`），类型是两端统一的 `SyNetworkQualityLevel`：`unknown` / `excellent` / `good` / `poor` / `bad` / `down`。质量由本机 RTT 和丢包算出，没有样本时是 `unknown`，不会填成 excellent。一次回调里的上下行用同一组统计。两端每 2 秒一轮：先本端 uid（`SyNetworkQualityEvent.isLocal` 为 true，质量为所有对端链路最差一档），再逐个对端；没有对端时只有本端 `unknown`。**首帧与分辨率**：两端都回调 `onFirstRemoteVideoDecoded` / `onFirstRemoteVideoFrame`（首帧）、`onVideoSizeChanged`（首帧及之后宽高或旋转变化）和 `onFirstLocalVideoFrame`（本地视频轨新建后的第一帧）。
 
+**本地录音。** `startAudioRecording(SyAudioRecordingConfiguration(filePath: ..., codecType: SyAudioCodecType.aacLc | wav))` 返回 0 / -1。频道内两端都录 WebRTC 管线里的 PCM（本端采集 + 远端解码，`includeLocal` / `includeRemote`），混成单声道，不另开麦克风；频道外只录麦克风、仅 AAC。不支持 mp3 和 HE-AAC（返回 -1，`onError(1000)`）。iOS 本端 PCM 走 WebRTC APM 采集后处理回调，真机效果待验证。
+
 ```dart
 engine.setEventHandler(SyRtcEventHandler(
   onNetworkQualityLevel: (uid, tx, rx) {
