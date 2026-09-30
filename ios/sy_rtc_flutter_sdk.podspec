@@ -29,8 +29,8 @@ iOS 端在 SyRtcSDK 发布到 CocoaPods trunk 之前，随插件编译仓库内�
   s.platform = :ios, '13.0'
 
   # Flutter.framework does not contain a i386 slice.
-  # Apple Silicon 下 Simulator arm64 可能与部分预编译依赖不匹配，这里一并排除，避免链接失败。
-  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386 arm64' }
+  # WebRTC-SDK 125.6422.07 带 arm64 模拟器切片，不能排除 arm64：iOS 26+ 的 Apple Silicon 模拟器只跑 arm64。
+  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
   s.swift_version = '5.0'
 
   # If your plugin requires a privacy manifest, for example if it uses any
