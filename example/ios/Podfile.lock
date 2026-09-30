@@ -1,13 +1,13 @@
 PODS:
   - Flutter (1.0.0)
-  - GoogleWebRTC (1.1.32000)
   - integration_test (0.0.1):
     - Flutter
   - permission_handler_apple (9.3.0):
     - Flutter
-  - sy_rtc_flutter_sdk (1.3.1):
+  - sy_rtc_flutter_sdk (3.2.0):
     - Flutter
-    - GoogleWebRTC
+    - WebRTC-SDK (= 125.6422.07)
+  - WebRTC-SDK (125.6422.07)
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
@@ -17,7 +17,7 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
-    - GoogleWebRTC
+    - WebRTC-SDK
 
 EXTERNAL SOURCES:
   Flutter:
@@ -30,11 +30,11 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/sy_rtc_flutter_sdk/ios"
 
 SPEC CHECKSUMS:
-  Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
-  GoogleWebRTC: 4d261187b30512efdb711d21fa961a6adf138717
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
-  sy_rtc_flutter_sdk: 97211ffc71ab1e4578bfb2442129d88a0537480f
+  sy_rtc_flutter_sdk: 8391d7aac204dc2855a46aae95b801f9a01212ff
+  WebRTC-SDK: dff00a3892bc570b6014e046297782084071657e
 
 PODFILE CHECKSUM: 1e6342b23ac33c0790074bb30a83f3659383bfd8
 
