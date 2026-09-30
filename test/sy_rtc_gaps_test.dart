@@ -46,7 +46,7 @@ void main() {
     final error = SyTokenException.tryFromCode(4032, '过期');
     expect(error?.businessCode, 4032);
     expect(error?.message, '过期');
-    expect(kSyRtcFlutterSdkVersion, '3.2.1');
+    expect(kSyRtcFlutterSdkVersion, '3.2.2');
   });
 
   test('local mute queries native state and quality switch renews token', () async {

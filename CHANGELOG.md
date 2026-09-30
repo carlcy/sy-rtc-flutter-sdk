@@ -1,3 +1,7 @@
+## 3.2.2
+
+- 版本对齐：插件、Android（`com.github.carlcy:sy-rtc-android-sdk:v3.2.2`）、iOS（`SyRtcSDK` 3.2.2）统一为 3.2.2。3.2.1 的 Android 仍指向 v3.2.0，因此发 3.2.2。代码无其他改动。
+
 ## 3.2.1
 
 - iOS 改为依赖 CocoaPods trunk 上的 `SyRtcSDK` 3.2.1，不再内置 `ios/SyRtcSDK` 源码。WebRTC-SDK 由 SyRtcSDK 传递（125.6422.07）。
