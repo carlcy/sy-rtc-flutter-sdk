@@ -28,7 +28,7 @@ class SyRtcEventHandler {
   /// 网络质量回调。
   ///
   /// 音量无关。质量由本机 WebRTC 统计里的 RTT 和丢包算出，没有样本时为
-  /// [SyNetworkQuality.unknown]。Android 与 iOS 的档位名字和阈值不同，见 [SyNetworkQuality]。
+  /// [SyNetworkQuality.unknown]。两端名字和阈值相同，见 [SyNetworkQualityLevel]。
   final void Function(String uid, SyNetworkQuality txQuality,
       SyNetworkQuality rxQuality)? onNetworkQuality;
 

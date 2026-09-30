@@ -278,17 +278,17 @@ engine.setEventHandler(SyRtcEventHandler(
 ));
 ```
 
-名字已在 Dart 层统一，阈值仍由各端原生计算：
+3.2.0 起 Android 与 iOS 原生用同一套名字和阈值（参考即构 Express 分级）。RTT 与丢包各自落档，取较差的一档：
 
-| 统一档位 | Android 原名 / 阈值 | iOS 原名 / 阈值 |
+| 档位 | RTT (ms) | 丢包 |
 | --- | --- | --- |
-| `down` | `die`：丢包 ≥30% 或 RTT ≥1000ms | `down`：丢包 ≥50% 或 RTT ≥2000ms |
-| `bad` | `bad`：≥15% 或 ≥500ms | `bad`：≥20% 或 ≥600ms |
-| `poor` | `medium`：≥8% 或 ≥300ms | `poor`：≥8% 或 ≥250ms |
-| `good` | `good`：≥3% 或 ≥150ms | `good`：≥2% 或 ≥100ms |
-| `excellent` | 其余 | 其余 |
+| `excellent` | < 100 | < 1% |
+| `good` | < 200 | < 3% |
+| `poor` | < 400 | < 8% |
+| `bad` | < 800 | < 20% |
+| `down` | ≥ 800 | ≥ 20% |
 
-旧的 `onNetworkQuality` / `SyNetworkQuality` 仍按原生名字回调，只为兼容保留；原文在 `txQualityRaw` / `rxQualityRaw`。
+旧的 `onNetworkQuality` / `SyNetworkQuality` 仍按原生名字回调，只为兼容保留；原文在 `txQualityRaw` / `rxQualityRaw`。旧版 Android 的 `medium` / `die` 仍映射到 `poor` / `down`。
 
 **通话统计。** `onRtcStats` 的 `SyRtcStats` 新增 `uid`、`rttMs`、`packetLossRate`（**统一为 0–1 的比例**，Android 原生的 0–100 `lossPercent` 已除以 100）、`txBitrate` / `rxBitrate`（bit/s，仅 Android）、`quality`（统一档位）、`networkType`（仅 iOS）和原始字段 `raw`。3.2.0 起 iOS 也会回调 `onRtcStats`。
 

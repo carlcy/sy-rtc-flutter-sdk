@@ -636,18 +636,18 @@ enum SyConnectionChangedReason {
 
 /// 两端统一的网络质量档位（语义对齐 ZEGO `ZegoStreamQualityLevel`）。
 ///
-/// 原生名字的映射：
-/// | 统一档位 | Android | iOS |
-/// |---|---|---|
-/// | [excellent] | `excellent` | `excellent` |
-/// | [good] | `good` | `good` |
-/// | [poor] | `medium` | `poor` |
-/// | [bad] | `bad` | `bad` |
-/// | [down] | `die` | `down` |
-/// | [unknown] | `unknown` / 其他 | `unknown` / 其他 |
+/// 3.2.0 起 Android 与 iOS 原生用同一套名字和阈值（参考即构 Express 分级），
+/// RTT 与丢包各自落档，取较差的一档：
 ///
-/// 名字统一了，但阈值仍由各端原生算：Android 丢包 ≥30% 或 RTT ≥1000ms 为 down，
-/// iOS 丢包 ≥50% 或 RTT ≥2000ms 为 down，其余档位见 [SyNetworkQuality]。
+/// | 档位 | RTT (ms) | 丢包 |
+/// |---|---|---|
+/// | [excellent] | < 100 | < 1% |
+/// | [good] | < 200 | < 3% |
+/// | [poor] | < 400 | < 8% |
+/// | [bad] | < 800 | < 20% |
+/// | [down] | ≥ 800 | ≥ 20% |
+///
+/// 没有样本时为 [unknown]。旧版 Android 的 `medium` / `die` 仍映射为 [poor] / [down]。
 enum SyNetworkQualityLevel {
   unknown,
   excellent,
@@ -678,17 +678,10 @@ enum SyNetworkQualityLevel {
   }
 }
 
-/// 旧的网络质量枚举，名字与原生字符串一致（两端不同）。新代码请用 [SyNetworkQualityLevel]。
+/// 旧的网络质量枚举，名字与原生字符串一致。新代码请用 [SyNetworkQualityLevel]。
 ///
-/// 没有 RTT 也没有丢包样本时，两端都回调 `unknown`。
-///
-/// Android（丢包为 0–100 的百分比，RTT 为毫秒）：
-/// `die` 丢包 ≥ 30 或 RTT ≥ 1000；`bad` ≥ 15 或 ≥ 500；
-/// `medium` ≥ 8 或 ≥ 300；`good` ≥ 3 或 ≥ 150；否则 `excellent`。
-///
-/// iOS（丢包为 0–1 的比例，RTT 为毫秒）：
-/// `down` 丢包 ≥ 0.5 或 RTT ≥ 2000；`bad` ≥ 0.2 或 ≥ 600；
-/// `poor` ≥ 0.08 或 ≥ 250；`good` ≥ 0.02 或 ≥ 100；否则 `excellent`。
+/// 3.2.0 起两端原生都发 `excellent` / `good` / `poor` / `bad` / `down` / `unknown`，
+/// 阈值见 [SyNetworkQualityLevel]。`medium` / `die` 只会来自旧版 Android。
 ///
 /// 上下行目前用的是同一组统计，所以一次回调里的 tx 与 rx 相同。
 /// `veryBad` 保留给旧的枚举名，当前两端原生都不会发出这个字符串。
