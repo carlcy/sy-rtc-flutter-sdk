@@ -694,6 +694,35 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
         invokeOnMain("onRequestToken", null)
       }
 
+      override fun onFirstRemoteVideoDecoded(uid: String, width: Int, height: Int, elapsed: Int) {
+        invokeOnMain("onFirstRemoteVideoDecoded", mapOf("uid" to uid, "width" to width, "height" to height, "elapsed" to elapsed))
+      }
+
+      override fun onFirstRemoteVideoFrame(uid: String, width: Int, height: Int, elapsed: Int) {
+        invokeOnMain("onFirstRemoteVideoFrame", mapOf("uid" to uid, "width" to width, "height" to height, "elapsed" to elapsed))
+      }
+
+      override fun onVideoSizeChanged(uid: String, width: Int, height: Int, rotation: Int) {
+        invokeOnMain("onVideoSizeChanged", mapOf("uid" to uid, "width" to width, "height" to height, "rotation" to rotation))
+      }
+
+      override fun onReconnecting(reason: String, attempt: Int, maxAttempts: Int, delayMs: Long) {
+        invokeOnMain("onReconnecting", mapOf(
+          "reason" to reason,
+          "attempt" to attempt,
+          "maxAttempts" to maxAttempts,
+          "delayMs" to delayMs
+        ))
+      }
+
+      override fun onReconnected(reason: String) {
+        invokeOnMain("onReconnected", mapOf("reason" to reason))
+      }
+
+      override fun onReconnectFailed(reason: String) {
+        invokeOnMain("onReconnectFailed", mapOf("reason" to reason))
+      }
+
       override fun onRejoinChannelSuccess(channelId: String, uid: String, elapsed: Int) {
         invokeOnMain("onRejoinChannelSuccess", mapOf(
           "channelId" to channelId,

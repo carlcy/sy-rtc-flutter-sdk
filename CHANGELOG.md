@@ -4,7 +4,9 @@
 - Android 坐标为 `com.github.carlcy:sy-rtc-android-sdk:v3.2.0`。iOS 目标为 `SyRtcSDK 3.2.0`；CocoaPods trunk 还没有该 pod，插件编译内置源码（对齐 `sy-rtc-ios-sdk` 分支 `cursor/versioned-spm-cocoapods-3ccc`）。
 - 接通原生能力：网络质量（RTT+丢包，无样本为 `unknown`）、0–255 音量、音频路由、前后摄、屏幕共享、静音查询、流附加信息、数据流、自定义采集开关、重连回调。
 - 网络质量：Android 与 iOS 原生阈值和名字统一（excellent <100ms/<1%，good <200ms/<3%，poor <400ms/<8%，bad <800ms/<20%，其余 down）。
-- 两端仍不一致的地方写在文档里：路由原始整数（Dart 层已统一为 `SyAudioRoute`）、iOS 只能切扬声器/听筒、重连次数 Android 3 次 / iOS 5 次。
+- 两端仍不一致的地方写在文档里：路由原始整数（Dart 层已统一为 `SyAudioRoute`）、iOS 只能切扬声器/听筒。
+- 重连两端统一：最多 5 次、1/2/4/8/16 秒退避、ICE 重启；新增 `onReconnecting` / `onReconnected` / `onReconnectFailed`、`SyReconnectPolicy`、`SyConnectionChangedReason.rejoinSuccess`，原生 reason 用 `syConnectionReasonFromNative` 映射。
+- 修复 iOS 原生可选回调不送达（`onJoinChannelSuccess`、`onNetworkQuality` 等此前在 iOS 上收不到）；iOS 插件补发 `onFirstRemoteVideoDecoded` / `onFirstRemoteVideoFrame` / `onVideoSizeChanged`。
 - 两端补齐并互通：`useFrontCamera`、`getStreamExtraInfo`、`isRemoteAudioMuted` / `isRemoteVideoMuted`、`sendSei` / `onSeiMessage`（DataChannel `SYSEI` 前缀，不是码流 SEI）、`onUserMuteVideo`；Android `getNetworkType` 改为真实值。Android 与 iOS 用同一套静音信令（`user-media`）和附加信息格式（`sy-extra:`），跨端进房能互相收到。
 - 去掉音量固定 0、空网络质量、以及 iOS 写死的「默认麦克风」列表。iOS 采集设备改为 `AVAudioSession.availableInputs`。
 - example 的 Android 构建升到 Gradle 8.14、AGP 8.11.1、Kotlin 2.2.20，以通过当前 Flutter 的最低版本检查。

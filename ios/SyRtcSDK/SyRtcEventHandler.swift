@@ -56,6 +56,39 @@ public protocol SyRtcEventHandler: AnyObject {
     ///   - uid: 发送方用户ID
     ///   - message: 消息内容（JSON字符串）
     func onChannelMessage(uid: String, message: String)
+
+    // MARK: 可选回调
+    // 必须声明为协议要求，否则引擎经 `SyRtcEventHandler?` 调用时会静态派发到下面的空默认实现，
+    // 实现方写的方法永远不会被调用。默认实现见下方 extension。
+    func onJoinChannelSuccess(channelId: String, uid: String, elapsed: Int)
+    func onLeaveChannel(stats: [String: Any])
+    func onRejoinChannelSuccess(channelId: String, uid: String, elapsed: Int)
+    func onRtcStats(stats: [String: Any])
+    func onKicked(channelId: String, reason: String)
+    func onServerMuteAudio(uid: String, muted: Bool)
+    func onUserMuteAudio(uid: String, muted: Bool)
+    func onConnectionStateChanged(state: String, reason: String)
+    /// 开始第 `attempt` 次重连（共 `maxAttempts` 次），`delayMs` 后执行。`reason` 为 `signaling` 或 `ice`。见 `SyRtcReconnectPolicy`。
+    func onReconnecting(reason: String, attempt: Int, maxAttempts: Int, delayMs: Int)
+    /// 重连成功（同时回调 `onRejoinChannelSuccess`）。
+    func onReconnected(reason: String)
+    /// 重连次数用完，之后回调 `onError(1003)`。需要 leave 后重新 join。
+    func onReconnectFailed(reason: String)
+    func onNetworkQuality(uid: String, txQuality: String, rxQuality: String)
+    func onTokenPrivilegeWillExpire()
+    func onRequestToken()
+    func onLocalAudioStateChanged(state: String, error: String)
+    func onRemoteAudioStateChanged(uid: String, state: String, reason: String, elapsed: Int)
+    func onLocalVideoStateChanged(state: String, error: String)
+    func onRemoteVideoStateChanged(uid: String, state: String, reason: String, elapsed: Int)
+    func onFirstRemoteVideoDecoded(uid: String, width: Int, height: Int, elapsed: Int)
+    func onFirstRemoteVideoFrame(uid: String, width: Int, height: Int, elapsed: Int)
+    func onVideoSizeChanged(uid: String, width: Int, height: Int, rotation: Int)
+    func onAudioRoutingChanged(routing: Int)
+    func onUserMuteVideo(uid: String, muted: Bool)
+    func onStreamExtraInfoUpdated(uid: String, extraInfo: String)
+    func onAudioPublishStateChanged(channelId: String, oldState: String, newState: String, elapsed: Int)
+    func onAudioSubscribeStateChanged(channelId: String, uid: String, oldState: String, newState: String, elapsed: Int)
 }
 
 // MARK: - Optional callbacks (default empty implementations)
@@ -70,6 +103,9 @@ public extension SyRtcEventHandler {
     func onServerMuteAudio(uid: String, muted: Bool) {}
     func onUserMuteAudio(uid: String, muted: Bool) {}
     func onConnectionStateChanged(state: String, reason: String) {}
+    func onReconnecting(reason: String, attempt: Int, maxAttempts: Int, delayMs: Int) {}
+    func onReconnected(reason: String) {}
+    func onReconnectFailed(reason: String) {}
     func onNetworkQuality(uid: String, txQuality: String, rxQuality: String) {}
     func onTokenPrivilegeWillExpire() {}
     func onRequestToken() {}

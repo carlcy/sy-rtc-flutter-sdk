@@ -31,7 +31,8 @@ void main() {
     cases.forEach((raw, level) {
       expect(SyNetworkQualityLevel.fromNative(raw), level, reason: raw);
     });
-    expect(SyNetworkQualityLevel.fromNative(null), SyNetworkQualityLevel.unknown);
+    expect(
+        SyNetworkQualityLevel.fromNative(null), SyNetworkQualityLevel.unknown);
   });
 
   test('packet loss is normalized to 0-1 on both platforms', () {
@@ -62,7 +63,10 @@ void main() {
     expect(ios.quality, SyNetworkQualityLevel.down);
     expect(ios.networkType, 'wifi');
 
-    expect(SyRtcStats.fromMap(<Object?, Object?>{'lossPercent': 250}).packetLossRate, 1.0);
+    expect(
+        SyRtcStats.fromMap(<Object?, Object?>{'lossPercent': 250})
+            .packetLossRate,
+        1.0);
     expect(SyRtcStats.fromMap(<Object?, Object?>{}).packetLossRate, isNull);
   });
 
@@ -123,7 +127,12 @@ void main() {
       'rxQuality': 'die',
     });
     await _emit('onRtcStats', {
-      'stats': {'uid': 'u2', 'quality': 'good', 'lossPercent': 2.0, 'rttMs': 60},
+      'stats': {
+        'uid': 'u2',
+        'quality': 'good',
+        'lossPercent': 2.0,
+        'rttMs': 60
+      },
     });
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     await _emit('onAudioRoutingChanged', {'routing': 1});
@@ -185,5 +194,48 @@ void main() {
     expect(await engine.sendSei(1, Uint8List.fromList([9])), 0);
     expect(calls.last.method, 'sendSei');
     expect(calls.last.arguments['streamId'], 1);
+  });
+
+  test('reconnect events and unified connection reasons', () async {
+    const channel = MethodChannel('sy_rtc_flutter_sdk');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async => null);
+    addTearDown(() => TestDefaultBinaryMessengerBinding
+        .instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null));
+    final engine = SyRtcEngine();
+    await engine.init('app');
+    final log = <String>[];
+    final reasons = <SyConnectionChangedReason>[];
+    engine.setEventHandler(SyRtcEventHandler(
+      onReconnecting: (e) =>
+          log.add('ing:${e.reason}:${e.attempt}/${e.maxAttempts}:${e.delayMs}'),
+      onReconnected: (r) => log.add('ok:$r'),
+      onReconnectFailed: (r) => log.add('fail:$r'),
+      onConnectionStateChanged: (state, reason) => reasons.add(reason),
+    ));
+    await _emit('onReconnecting',
+        {'reason': 'ice', 'attempt': 2, 'maxAttempts': 5, 'delayMs': 2000});
+    await _emit('onReconnected', {'reason': 'ice'});
+    await _emit('onReconnectFailed', {'reason': 'signaling'});
+    for (final r in [
+      'joining',
+      'join_success',
+      'signaling',
+      'rejoin_success',
+      'leave'
+    ]) {
+      await _emit(
+          'onConnectionStateChanged', {'state': 'connected', 'reason': r});
+    }
+    expect(log, ['ing:ice:2/5:2000', 'ok:ice', 'fail:signaling']);
+    expect(reasons, [
+      SyConnectionChangedReason.connecting,
+      SyConnectionChangedReason.joinSuccess,
+      SyConnectionChangedReason.interrupt,
+      SyConnectionChangedReason.rejoinSuccess,
+      SyConnectionChangedReason.leaveChannel,
+    ]);
+    expect(SyReconnectPolicy.delaysMs, [1000, 2000, 4000, 8000, 16000]);
   });
 }

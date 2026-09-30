@@ -304,7 +304,7 @@ engine.setEventHandler(SyRtcEventHandler(
 
 **自定义采集。** `enableCustomVideoCapture(true)` 会停掉摄像头。送帧仍是原生类型：Android `org.webrtc.VideoFrame`，iOS `CVPixelBuffer`。方法通道不接收像素，避免假装帧已经进编码器。美颜提亮仍用 `setBeautyEffectOptions`。自定义帧处理器同样是原生钩子，不会把帧回调到 Dart。
 
-**重连。** 听 `onConnectionStateChanged` 的 `nativeReason`，以及 `onRejoinChannelSuccess`。Android 信令最多再试 3 次，用尽后 `onError` 1003；ICE 会 `restartIce`，恢复后重进房回调。iOS 信令按 1、2、4、8、16 秒退避，最多 5 次，用尽后 `nativeReason` 为 `signaling_give_up`，`onError` 1005。
+**重连。** 两端同一策略（`SyReconnectPolicy`）：信令或 ICE 断开后最多 5 次，间隔 1、2、4、8、16 秒；ICE 断开时 uid 字典序较小的一方 `restartIce` 并重发 offer。听 `onReconnecting`（第几次、等多久）、`onReconnected`、`onReconnectFailed`（之后 `onError` 1003，需要 leave 后重新 join）。`onConnectionStateChanged` 的 reason 两端相同：`joining` → `join_success`，断开时 `signaling` / `ice`，恢复 `rejoin_success`（`SyConnectionChangedReason.rejoinSuccess`），离开 `leaving` / `leave`。
 
 **网络类型。** `getNetworkType` 在 iOS 上可能是 `wifi`、`cellular`、`ethernet`、`none`、`unknown`（进房后才开始监视）。Android 用 `ConnectivityManager` 实时判断，取值相同。
 

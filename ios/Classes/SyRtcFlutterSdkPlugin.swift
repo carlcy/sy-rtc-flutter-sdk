@@ -836,6 +836,35 @@ extension SyRtcFlutterSdkPlugin: SyRtcEventHandler {
     eventChannel?.invokeMethod("onLeaveChannel", arguments: ["stats": stats])
   }
 
+  public func onFirstRemoteVideoDecoded(uid: String, width: Int, height: Int, elapsed: Int) {
+    eventChannel?.invokeMethod("onFirstRemoteVideoDecoded", arguments: ["uid": uid, "width": width, "height": height, "elapsed": elapsed])
+  }
+
+  public func onFirstRemoteVideoFrame(uid: String, width: Int, height: Int, elapsed: Int) {
+    eventChannel?.invokeMethod("onFirstRemoteVideoFrame", arguments: ["uid": uid, "width": width, "height": height, "elapsed": elapsed])
+  }
+
+  public func onVideoSizeChanged(uid: String, width: Int, height: Int, rotation: Int) {
+    eventChannel?.invokeMethod("onVideoSizeChanged", arguments: ["uid": uid, "width": width, "height": height, "rotation": rotation])
+  }
+
+  public func onReconnecting(reason: String, attempt: Int, maxAttempts: Int, delayMs: Int) {
+    eventChannel?.invokeMethod("onReconnecting", arguments: [
+      "reason": reason,
+      "attempt": attempt,
+      "maxAttempts": maxAttempts,
+      "delayMs": delayMs
+    ])
+  }
+
+  public func onReconnected(reason: String) {
+    eventChannel?.invokeMethod("onReconnected", arguments: ["reason": reason])
+  }
+
+  public func onReconnectFailed(reason: String) {
+    eventChannel?.invokeMethod("onReconnectFailed", arguments: ["reason": reason])
+  }
+
   public func onRejoinChannelSuccess(channelId: String, uid: String, elapsed: Int) {
     eventChannel?.invokeMethod("onRejoinChannelSuccess", arguments: [
       "channelId": channelId,

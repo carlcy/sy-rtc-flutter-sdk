@@ -139,10 +139,22 @@ class SyRtcEventHandler {
   /// 错误回调
   final void Function(int code, String message)? onError;
 
+  /// 开始重连（两端同一策略，见 [SyReconnectPolicy]）。
+  final void Function(SyReconnectingEvent event)? onReconnecting;
+
+  /// 重连成功。[reason] 为 `signaling` 或 `ice`。
+  final void Function(String reason)? onReconnected;
+
+  /// 重连次数用完，之后 `onError(1003)`。
+  final void Function(String reason)? onReconnectFailed;
+
   SyRtcEventHandler({
     this.onJoinChannelSuccess,
     this.onLeaveChannel,
     this.onRejoinChannelSuccess,
+    this.onReconnecting,
+    this.onReconnected,
+    this.onReconnectFailed,
     this.onUserJoined,
     this.onUserOffline,
     this.onConnectionStateChanged,

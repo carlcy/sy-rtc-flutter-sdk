@@ -274,12 +274,10 @@ class SyRtcEngine {
 
   /// 连接状态变化事件流。
   ///
-  /// 重连策略两端不同，插件不统一次数：
-  /// Android 信令失败最多再试 3 次（间隔 1 秒乘已尝试次数），用尽后 `state=failed`，
-  /// `onError` 码 1003。ICE 断开会 `restartIce`，恢复后回调 `onRejoinChannelSuccess`。
-  /// iOS 信令按 1、2、4、8、16 秒退避，最多 5 次，用尽后 `nativeReason=signaling_give_up`，
-  /// `onError` 码 1005。信令重新连上后也会回调 `onRejoinChannelSuccess`。
-  /// 看原生原因请用 [SyConnectionStateChangedEvent.nativeReason]，不要只看枚举。
+  /// 两端重连策略相同（[SyReconnectPolicy]）：信令或 ICE 断开后最多 5 次，
+  /// 间隔 1、2、4、8、16 秒；ICE 断开时 offer 发起方 `restartIce` 并重发 offer。
+  /// 过程：`reconnecting`（[onReconnecting]）→ `connected` + [SyConnectionChangedReason.rejoinSuccess]
+  /// （[onReconnected]、`onRejoinChannelSuccess`）或 `failed`（[onReconnectFailed]、`onError(1003)`）。
   Stream<SyConnectionStateChangedEvent> get onConnectionStateChanged {
     return _eventController.stream
         .where((event) => event is SyConnectionStateChangedEvent)
@@ -361,6 +359,21 @@ class SyRtcEngine {
   }
 
   /// 远端用户开关了自己的视频。Android / iOS 都会回调，两端互通。
+  /// 开始重连。见 [SyReconnectPolicy]。
+  Stream<SyReconnectingEvent> get onReconnecting => _eventController.stream
+      .where((event) => event is SyReconnectingEvent)
+      .cast<SyReconnectingEvent>();
+
+  /// 重连成功。
+  Stream<SyReconnectedEvent> get onReconnected => _eventController.stream
+      .where((event) => event is SyReconnectedEvent)
+      .cast<SyReconnectedEvent>();
+
+  /// 重连次数用完。
+  Stream<SyReconnectFailedEvent> get onReconnectFailed => _eventController.stream
+      .where((event) => event is SyReconnectFailedEvent)
+      .cast<SyReconnectFailedEvent>();
+
   Stream<SyUserMuteVideoEvent> get onUserMuteVideo {
     return _eventController.stream
         .where((event) => event is SyUserMuteVideoEvent)
@@ -1168,10 +1181,7 @@ class SyRtcEngine {
             (e) => e.toString().split('.').last == stateStr,
             orElse: () => SyConnectionState.disconnected,
           );
-          final reason = SyConnectionChangedReason.values.firstWhere(
-            (e) => e.toString().split('.').last == reasonStr,
-            orElse: () => SyConnectionChangedReason.connecting,
-          );
+          final reason = syConnectionReasonFromNative(reasonStr);
           final event = SyConnectionStateChangedEvent(
             state: state,
             reason: reason,
@@ -1179,6 +1189,28 @@ class SyRtcEngine {
           );
           _eventController.add(event);
           _eventHandler?.onConnectionStateChanged?.call(state, reason);
+          break;
+        case 'onReconnecting':
+          final args = Map<Object?, Object?>.from(call.arguments as Map);
+          final event = SyReconnectingEvent(
+            reason: args['reason'] as String? ?? '',
+            attempt: (args['attempt'] as num?)?.toInt() ?? 0,
+            maxAttempts: (args['maxAttempts'] as num?)?.toInt() ??
+                SyReconnectPolicy.maxAttempts,
+            delayMs: (args['delayMs'] as num?)?.toInt() ?? 0,
+          );
+          _eventController.add(event);
+          _eventHandler?.onReconnecting?.call(event);
+          break;
+        case 'onReconnected':
+          final reason = (call.arguments as Map?)?['reason'] as String? ?? '';
+          _eventController.add(SyReconnectedEvent(reason: reason));
+          _eventHandler?.onReconnected?.call(reason);
+          break;
+        case 'onReconnectFailed':
+          final reason = (call.arguments as Map?)?['reason'] as String? ?? '';
+          _eventController.add(SyReconnectFailedEvent(reason: reason));
+          _eventHandler?.onReconnectFailed?.call(reason);
           break;
         case 'onNetworkQuality':
           final uid = call.arguments['uid'] as String? ?? '0';

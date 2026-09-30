@@ -47,9 +47,8 @@ class SyConnectionStateChangedEvent extends SyRtcEvent {
   final SyConnectionState state;
   final SyConnectionChangedReason reason;
 
-  /// 原生原文字符串。Android 例如 `signaling`、`ice`、`rejoined`；
-  /// iOS 例如 `signaling`、`signaling_give_up`、`rejoin_success`、`ice_checking:<uid>`。
-  /// [reason] 只覆盖能对上枚举名的情况，对不上时保持 [SyConnectionChangedReason.connecting]。
+  /// 原生原文字符串。3.2.0 起两端相同：`joining`、`join_success`、`signaling`、`ice`、
+  /// `rejoin_success`、`leaving`、`leave`。[reason] 由 [syConnectionReasonFromNative] 映射。
   final String nativeReason;
 
   SyConnectionStateChangedEvent({
@@ -632,6 +631,71 @@ enum SyConnectionChangedReason {
   renewingToken,   // 更新 Token
   clientIpAddressChanged, // 客户端 IP 地址变化
   keepAliveTimeout, // 保活超时
+  rejoinSuccess,   // 断线后重连成功（原生 `rejoin_success`）
+}
+
+/// 把原生 reason 映射到 [SyConnectionChangedReason]。两端 3.2.0 起用同一组字符串：
+/// `joining` / `join_success` / `signaling` / `ice` / `rejoin_success` / `leaving` / `leave`。
+SyConnectionChangedReason syConnectionReasonFromNative(String raw) {
+  final base = raw.split(':').first;
+  switch (base) {
+    case 'joining':
+    case 'join':
+      return SyConnectionChangedReason.connecting;
+    case 'join_success':
+    case 'user-list':
+      return SyConnectionChangedReason.joinSuccess;
+    case 'rejoin_success':
+    case 'rejoined':
+      return SyConnectionChangedReason.rejoinSuccess;
+    case 'signaling':
+    case 'ice':
+    case 'signaling_give_up':
+      return SyConnectionChangedReason.interrupt;
+    case 'leaving':
+    case 'leave':
+      return SyConnectionChangedReason.leaveChannel;
+  }
+  for (final value in SyConnectionChangedReason.values) {
+    if (value.name == base) return value;
+  }
+  return SyConnectionChangedReason.connecting;
+}
+
+/// 重连策略，与 Android `ReconnectPolicy`、iOS `SyRtcReconnectPolicy` 相同（原生执行，这里只是常量）。
+///
+/// 信令或 ICE 断开后最多重试 [maxAttempts] 次，第 n 次等待 `2^(n-1)` 秒。
+class SyReconnectPolicy {
+  SyReconnectPolicy._();
+  static const int maxAttempts = 5;
+  static const List<int> delaysMs = [1000, 2000, 4000, 8000, 16000];
+}
+
+/// 开始第 [attempt] 次重连。[reason] 为 `signaling` 或 `ice`。
+class SyReconnectingEvent extends SyRtcEvent {
+  final String reason;
+  final int attempt;
+  final int maxAttempts;
+  final int delayMs;
+
+  SyReconnectingEvent({
+    required this.reason,
+    required this.attempt,
+    required this.maxAttempts,
+    required this.delayMs,
+  }) : super('reconnecting');
+}
+
+/// 重连成功（同时也会有 `onRejoinChannelSuccess`）。
+class SyReconnectedEvent extends SyRtcEvent {
+  final String reason;
+  SyReconnectedEvent({required this.reason}) : super('reconnected');
+}
+
+/// 重连次数用完。之后还会有 `onError(1003)`，需要 leave 后重新 join。
+class SyReconnectFailedEvent extends SyRtcEvent {
+  final String reason;
+  SyReconnectFailedEvent({required this.reason}) : super('reconnectFailed');
 }
 
 /// 两端统一的网络质量档位（语义对齐 ZEGO `ZegoStreamQualityLevel`）。
