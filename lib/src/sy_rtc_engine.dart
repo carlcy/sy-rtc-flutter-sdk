@@ -287,8 +287,9 @@ class SyRtcEngine {
 
   /// 网络质量事件流。
   ///
-  /// 由本机 RTT 和丢包算出。没有样本时质量为 [SyNetworkQuality.unknown]。
-  /// 两端档位名字和阈值不同，见 [SyNetworkQuality]。插件不改写这些名字。
+  /// 由本机 RTT 和丢包算出。请读事件里的 [SyNetworkQualityEvent.txLevel] /
+  /// [SyNetworkQualityEvent.rxLevel]（两端统一的 [SyNetworkQualityLevel]）。
+  /// 没有样本时为 unknown。旧字段 txQuality / rxQuality 保留原生名字。
   Stream<SyNetworkQualityEvent> get onNetworkQuality {
     return _eventController.stream
         .where((event) => event is SyNetworkQualityEvent)
@@ -853,7 +854,10 @@ class SyRtcEngine {
   /// Android 能上报扬声器、听筒、耳机、蓝牙；主动切换同样只有扬声器和听筒。
   Future<SyAudioRoute> getAudioRoute() async {
     final value = await _channel.invokeMethod<Map<Object?, Object?>>('getAudioRoute');
-    return SyAudioRoute.parse(value?['route'] as String?);
+    return SyAudioRoute.fromNative(
+      name: value?['route'] as String?,
+      routing: (value?['routing'] as num?)?.toInt(),
+    );
   }
 
   /// 切换播放路由。
@@ -1069,7 +1073,8 @@ class SyRtcEngine {
           break;
         case 'onLeaveChannel':
           final statsMap =
-              call.arguments['stats'] as Map<String, dynamic>? ?? {};
+              (call.arguments['stats'] as Map?)?.cast<Object?, Object?>() ??
+                  const <Object?, Object?>{};
           final stats = SyRtcStats.fromMap(statsMap);
           final event = SyLeaveChannelEvent(stats: stats);
           _eventController.add(event);
@@ -1086,7 +1091,8 @@ class SyRtcEngine {
           break;
         case 'onRtcStats':
           final statsMap =
-              call.arguments['stats'] as Map<String, dynamic>? ?? {};
+              (call.arguments['stats'] as Map?)?.cast<Object?, Object?>() ??
+                  const <Object?, Object?>{};
           final stats = SyRtcStats.fromMap(statsMap);
           final event = SyRtcStatsEvent(stats: stats);
           _eventController.add(event);
@@ -1183,6 +1189,8 @@ class SyRtcEngine {
           );
           _eventController.add(event);
           _eventHandler?.onNetworkQuality?.call(uid, txQuality, rxQuality);
+          _eventHandler?.onNetworkQualityLevel
+              ?.call(uid, event.txLevel, event.rxLevel);
           break;
         case 'onRemoteAudioStateChanged':
           final uid = call.arguments['uid'] as String;
@@ -1264,7 +1272,10 @@ class SyRtcEngine {
           break;
         case 'onAudioRoutingChanged':
           final routing = call.arguments['routing'] as int? ?? -1;
-          final route = SyAudioRoute.parse(call.arguments['route'] as String?);
+          final route = SyAudioRoute.fromNative(
+            name: call.arguments['route'] as String?,
+            routing: routing,
+          );
           final event =
               SyAudioRoutingChangedEvent(routing: routing, route: route);
           _eventController.add(event);

@@ -262,14 +262,37 @@ await room.deleteChannelMeta(channelId: channelId, key: 'title');
 
 **音量。** `enableAudioVolumeIndication` 之后，`onVolumeIndication` 里的 `volume` 两端都是 0–255。Android 用 PCM RMS；本地用户的 `uid` 是 `local`。iOS 把 WebRTC `audioLevel`（0–1）乘 255；本地 `uid` 是进房时的 uid。没有统计样本时音量是 0。`vad` 只在 iOS 且 `reportVad: true`、能量大于 0.02 时为 1；Android 没有人声检测，`vad` 为 0。
 
-**网络质量。** `onNetworkQuality` 由本机 RTT 和丢包算出。没有样本时是 `unknown`，插件不会把它填成 excellent。一次回调里的上下行用的是同一组统计。档位名字不互相改写：
+**网络质量。** 请用 `onNetworkQualityLevel`（或事件的 `txLevel` / `rxLevel`），类型是两端统一的 `SyNetworkQualityLevel`：`unknown` / `excellent` / `good` / `poor` / `bad` / `down`。质量由本机 RTT 和丢包算出，没有样本时是 `unknown`，不会填成 excellent。一次回调里的上下行用同一组统计。
 
-| 平台 | 档位（从差到好） | 阈值 |
+```dart
+engine.setEventHandler(SyRtcEventHandler(
+  onNetworkQualityLevel: (uid, tx, rx) {
+    if (tx == SyNetworkQualityLevel.bad || tx == SyNetworkQualityLevel.down) {
+      engine.setQualityTier(SyQualityTier.sd);
+    }
+  },
+  onRtcStats: (stats) {
+    // packetLossRate 两端都是 0–1；rttMs 为毫秒
+    debugPrint('${stats.uid} rtt=${stats.rttMs} loss=${stats.packetLossRate}');
+  },
+));
+```
+
+名字已在 Dart 层统一，阈值仍由各端原生计算：
+
+| 统一档位 | Android 原名 / 阈值 | iOS 原名 / 阈值 |
 | --- | --- | --- |
-| Android | `die` / `bad` / `medium` / `good` / `excellent` | 丢包按 0–100。`die`：≥30% 或 RTT ≥1000ms；`bad`：≥15% 或 ≥500ms；`medium`：≥8% 或 ≥300ms；`good`：≥3% 或 ≥150ms |
-| iOS | `down` / `bad` / `poor` / `good` / `excellent` | 丢包按 0–1。`down`：≥0.5 或 RTT ≥2000ms；`bad`：≥0.2 或 ≥600ms；`poor`：≥0.08 或 ≥250ms；`good`：≥0.02 或 ≥100ms |
+| `down` | `die`：丢包 ≥30% 或 RTT ≥1000ms | `down`：丢包 ≥50% 或 RTT ≥2000ms |
+| `bad` | `bad`：≥15% 或 ≥500ms | `bad`：≥20% 或 ≥600ms |
+| `poor` | `medium`：≥8% 或 ≥300ms | `poor`：≥8% 或 ≥250ms |
+| `good` | `good`：≥3% 或 ≥150ms | `good`：≥2% 或 ≥100ms |
+| `excellent` | 其余 | 其余 |
 
-**音频路由。** 请用 `SyAudioRoute` 和 `onAudioRoute`。`setAudioRoute` 两端都只能切 `speaker` 和 `earpiece`，返回 0。耳机和蓝牙返回 -1。Android 会在设备接上且没强制扬声器时上报 `headset` / `bluetooth`。iOS 的蓝牙和有线耳机只上报，主动设置会再回调 `onError` 1004。事件里的 `routing` 仍是原生整数，不要混用：Android 0 扬声器、1 耳机、2 蓝牙、3 听筒；iOS 0 耳机、1 听筒、3 扬声器、5 蓝牙、-1 未知。
+旧的 `onNetworkQuality` / `SyNetworkQuality` 仍按原生名字回调，只为兼容保留；原文在 `txQualityRaw` / `rxQualityRaw`。
+
+**通话统计。** `onRtcStats` 的 `SyRtcStats` 新增 `uid`、`rttMs`、`packetLossRate`（**统一为 0–1 的比例**，Android 原生的 0–100 `lossPercent` 已除以 100）、`txBitrate` / `rxBitrate`（bit/s，仅 Android）、`quality`（统一档位）、`networkType`（仅 iOS）和原始字段 `raw`。3.2.0 起 iOS 也会回调 `onRtcStats`。
+
+**音频路由。** 请用 `SyAudioRoute` 和 `onAudioRoute`。原生整数在 Dart 层按平台翻译（`SyAudioRoute.fromNative`），事件里的 `routing` 仍是原生整数，不要跨平台比较：Android 0 扬声器、1 耳机、2 蓝牙、3 听筒；iOS 0 耳机、1 听筒、3 扬声器、5 蓝牙、-1 未知。`setAudioRoute` 两端都只能切 `speaker` 和 `earpiece`，返回 0；耳机和蓝牙返回 -1。Android 会在设备接上且没强制扬声器时上报 `headset` / `bluetooth`。iOS 的蓝牙和有线耳机只上报，主动设置会再回调 `onError` 1004。
 
 **设备与摄像头。** Android 采集/播放设备来自 `AudioManager`。iOS 采集设备来自 `AVAudioSession.availableInputs`，没有输入口时是空列表。iOS 播放设备只有 `speaker` 和 `earpiece`。`switchCamera` 两端都有。`useFrontCamera` 只在 iOS 生效，Android 返回 -2。
 

@@ -32,7 +32,13 @@ class SyRtcEventHandler {
   final void Function(String uid, SyNetworkQuality txQuality,
       SyNetworkQuality rxQuality)? onNetworkQuality;
 
-  /// 通话统计信息回调（每 2 秒触发一次）
+  /// 网络质量回调（推荐）。档位两端统一，见 [SyNetworkQualityLevel]。
+  ///
+  /// 与 [onNetworkQuality] 同一次原生回调触发。
+  final void Function(String uid, SyNetworkQualityLevel txLevel,
+      SyNetworkQualityLevel rxLevel)? onNetworkQualityLevel;
+
+  /// 通话统计信息回调。RTT、丢包（0–1）、码率与统一档位见 [SyRtcStats]。
   final void Function(SyRtcStats stats)? onRtcStats;
 
   /// Token 即将过期回调（30秒前）
@@ -141,6 +147,7 @@ class SyRtcEventHandler {
     this.onUserOffline,
     this.onConnectionStateChanged,
     this.onNetworkQuality,
+    this.onNetworkQualityLevel,
     this.onRtcStats,
     this.onTokenPrivilegeWillExpire,
     this.onRequestToken,
