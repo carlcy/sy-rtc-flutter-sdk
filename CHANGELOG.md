@@ -21,6 +21,7 @@
 - 网络质量两端同一回调方式：每轮先本端 uid（对端最差一档），再逐个对端；`SyNetworkQualityEvent.isLocal`、`SyRtcEngine.localUid`。
 - Android 原生开始回调 `onFirstRemoteVideoDecoded` / `onFirstRemoteVideoFrame` / `onVideoSizeChanged`；两端 `onVideoSizeChanged` 在每次尺寸变化时回调；新增 `onFirstLocalVideoFrame`（`SyFirstLocalVideoFrameEvent`）。
 - 本地录音：`startAudioRecording` 改为返回 `Future<int>`（0 / -1）；`SyAudioRecordingConfiguration` 新增 `includeLocal` / `includeRemote`，`SyAudioCodecType` 新增 `wav`，`heAac` / `heAacV2` 标记废弃（两端未实现，原生报 1000）。两端原生在频道内改为录 WebRTC 管线 PCM 并混入远端，不再另开麦克风；Android 去掉了名不副实的 mp3（实际是 AMR-NB）。
+- Token 过期提醒：两端原生对本地定时器与服务端推送（`token-privilege-will-expire` / `token-expired`）按 Token 去重，`onTokenPrivilegeWillExpire` / `onRequestToken` 每个 Token 各一次。
 
 ## 3.1.2
 
