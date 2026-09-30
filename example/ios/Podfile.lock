@@ -4,8 +4,10 @@ PODS:
     - Flutter
   - permission_handler_apple (9.3.0):
     - Flutter
-  - sy_rtc_flutter_sdk (3.2.0):
+  - sy_rtc_flutter_sdk (3.2.1):
     - Flutter
+    - SyRtcSDK (= 3.2.1)
+  - SyRtcSDK (3.2.1):
     - WebRTC-SDK (= 125.6422.07)
   - WebRTC-SDK (125.6422.07)
 
@@ -17,6 +19,7 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
+    - SyRtcSDK
     - WebRTC-SDK
 
 EXTERNAL SOURCES:
@@ -33,7 +36,8 @@ SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
-  sy_rtc_flutter_sdk: 8391d7aac204dc2855a46aae95b801f9a01212ff
+  sy_rtc_flutter_sdk: 67540297f7d3d4aece120128de76797b0176210e
+  SyRtcSDK: 72c0d7ff9728bf8335a4939ca5b3dc131960408e
   WebRTC-SDK: dff00a3892bc570b6014e046297782084071657e
 
 PODFILE CHECKSUM: 1e6342b23ac33c0790074bb30a83f3659383bfd8

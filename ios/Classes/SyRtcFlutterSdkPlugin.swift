@@ -1,4 +1,5 @@
 import Flutter
+import SyRtcSDK
 import UIKit
 
 public class SyRtcFlutterSdkPlugin: NSObject, FlutterPlugin {

@@ -1,3 +1,9 @@
+## 3.2.1
+
+- iOS 改为依赖 CocoaPods trunk 上的 `SyRtcSDK` 3.2.1，不再内置 `ios/SyRtcSDK` 源码。WebRTC-SDK 由 SyRtcSDK 传递（125.6422.07）。
+- 随 SyRtcSDK 3.2.1 修复：iOS 收不到数据流 / SEI（DataChannel 代理被立即释放）。
+- Android 仍为 `com.github.carlcy:sy-rtc-android-sdk:v3.2.0`。
+
 ## 3.2.0
 
 - 网络质量上下行分开（原生 Android / iOS 同步）：tx = RTT + 上行丢包，rx = 本周期下行丢包 + 抖动。`SyRtcStats` 新增 `txQuality` / `rxQuality` / `txPacketLossRate` / `rxPacketLossRate` / `jitterMs`。
