@@ -284,7 +284,7 @@ await room.deleteChannelMeta(channelId: channelId, key: 'title');
 
 **音量。** `enableAudioVolumeIndication` 之后，`onVolumeIndication` 里的 `volume` 两端都是 0–255。Android 用 PCM RMS；本地用户的 `uid` 是 `local`。iOS 把 WebRTC `audioLevel`（0–1）乘 255；本地 `uid` 是进房时的 uid。没有统计样本时音量是 0。`vad` 只在 iOS 且 `reportVad: true`、能量大于 0.02 时为 1；Android 没有人声检测，`vad` 为 0。
 
-**网络质量。** 请用 `onNetworkQualityLevel`（或事件的 `txLevel` / `rxLevel`），类型是两端统一的 `SyNetworkQualityLevel`：`unknown` / `excellent` / `good` / `poor` / `bad` / `down`。质量由本机 RTT 和丢包算出，没有样本时是 `unknown`，不会填成 excellent。一次回调里的上下行用同一组统计。
+**网络质量。** 请用 `onNetworkQualityLevel`（或事件的 `txLevel` / `rxLevel`），类型是两端统一的 `SyNetworkQualityLevel`：`unknown` / `excellent` / `good` / `poor` / `bad` / `down`。质量由本机 RTT 和丢包算出，没有样本时是 `unknown`，不会填成 excellent。一次回调里的上下行用同一组统计。两端每 2 秒一轮：先本端 uid（`SyNetworkQualityEvent.isLocal` 为 true，质量为所有对端链路最差一档），再逐个对端；没有对端时只有本端 `unknown`。**首帧与分辨率**：两端都回调 `onFirstRemoteVideoDecoded` / `onFirstRemoteVideoFrame`（首帧）、`onVideoSizeChanged`（首帧及之后宽高或旋转变化）和 `onFirstLocalVideoFrame`（本地视频轨新建后的第一帧）。
 
 ```dart
 engine.setEventHandler(SyRtcEventHandler(

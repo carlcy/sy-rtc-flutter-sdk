@@ -844,6 +844,10 @@ extension SyRtcFlutterSdkPlugin: SyRtcEventHandler {
     eventChannel?.invokeMethod("onFirstRemoteVideoFrame", arguments: ["uid": uid, "width": width, "height": height, "elapsed": elapsed])
   }
 
+  public func onFirstLocalVideoFrame(width: Int, height: Int, elapsed: Int) {
+    eventChannel?.invokeMethod("onFirstLocalVideoFrame", arguments: ["width": width, "height": height, "elapsed": elapsed])
+  }
+
   public func onVideoSizeChanged(uid: String, width: Int, height: Int, rotation: Int) {
     eventChannel?.invokeMethod("onVideoSizeChanged", arguments: ["uid": uid, "width": width, "height": height, "rotation": rotation])
   }

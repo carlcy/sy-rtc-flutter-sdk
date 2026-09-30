@@ -18,6 +18,8 @@
 - 新增 `SyRtcErrorCode`，`onError` 码两端统一（iOS 原生改了码值：音频路由 1004 → 1009、屏幕共享 1008 → 1006、未知画质 / 附加信息过长 → 1000、视频源未就绪 → 1005 / 1007；被踢两端都报 1004；凭证停用报 4031 / 4032 / 4033；信令错误文本改读服务端 `message` 字段）。
 - 修正 `SyTokenBusinessCode`：4031 暂停（`suspended`）、4032 吊销（`revoked`）、4033 过期（`expired`），与服务端一致。`invalid` / `privilegeDenied` 为已弃用别名；`expired` 由 4032 改为 4033。
 - Token 过期提醒两端一致：读服务端 Token 的 `expireAt`，提前 30 秒 `onTokenPrivilegeWillExpire`，到期 `onRequestToken`。此前 Android 从不回调，iOS 只认 JWT 所以也不回调。
+- 网络质量两端同一回调方式：每轮先本端 uid（对端最差一档），再逐个对端；`SyNetworkQualityEvent.isLocal`、`SyRtcEngine.localUid`。
+- Android 原生开始回调 `onFirstRemoteVideoDecoded` / `onFirstRemoteVideoFrame` / `onVideoSizeChanged`；两端 `onVideoSizeChanged` 在每次尺寸变化时回调；新增 `onFirstLocalVideoFrame`（`SyFirstLocalVideoFrameEvent`）。
 
 ## 3.1.2
 

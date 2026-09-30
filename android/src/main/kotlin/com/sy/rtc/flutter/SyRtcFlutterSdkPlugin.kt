@@ -702,6 +702,10 @@ class SyRtcFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
         invokeOnMain("onFirstRemoteVideoFrame", mapOf("uid" to uid, "width" to width, "height" to height, "elapsed" to elapsed))
       }
 
+      override fun onFirstLocalVideoFrame(width: Int, height: Int, elapsed: Int) {
+        invokeOnMain("onFirstLocalVideoFrame", mapOf("width" to width, "height" to height, "elapsed" to elapsed))
+      }
+
       override fun onVideoSizeChanged(uid: String, width: Int, height: Int, rotation: Int) {
         invokeOnMain("onVideoSizeChanged", mapOf("uid" to uid, "width" to width, "height" to height, "rotation" to rotation))
       }

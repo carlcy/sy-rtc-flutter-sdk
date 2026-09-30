@@ -120,6 +120,7 @@ class SyRtcEngine {
   /// [uid] 用户ID
   /// [token] 鉴权Token
   Future<void> join(String channelId, String uid, String token) async {
+    _localUid = uid;
     await _channel.invokeMethod('join', {
       'channelId': channelId,
       'uid': uid,
@@ -130,7 +131,13 @@ class SyRtcEngine {
   /// 离开频道
   Future<void> leave() async {
     await _channel.invokeMethod('leave');
+    _localUid = null;
   }
+
+  String? _localUid;
+
+  /// 最近一次 [join] 的本端 uid，未加入时为 null。[SyNetworkQualityEvent.isLocal] 据此判断。
+  String? get localUid => _localUid;
 
   /// 启用/禁用本地音频
   ///
@@ -402,6 +409,14 @@ class SyRtcEngine {
   }
 
   /// 视频大小变化事件流
+  /// 本地视频轨新建后的第一帧（两端相同）。
+  Stream<SyFirstLocalVideoFrameEvent> get onFirstLocalVideoFrame {
+    return _eventController.stream
+        .where((event) => event is SyFirstLocalVideoFrameEvent)
+        .cast<SyFirstLocalVideoFrameEvent>();
+  }
+
+  /// 远端视频宽、高或旋转变化（首帧也会回调一次）。两端相同。
   Stream<SyVideoSizeChangedEvent> get onVideoSizeChanged {
     return _eventController.stream
         .where((event) => event is SyVideoSizeChangedEvent)
@@ -1220,6 +1235,7 @@ class SyRtcEngine {
           final rxQuality = syNetworkQualityFromNative(rxStr);
           final event = SyNetworkQualityEvent(
             uid: uid,
+            isLocal: uid == _localUid,
             txQuality: txQuality,
             rxQuality: rxQuality,
             txQualityRaw: txStr,
@@ -1404,6 +1420,14 @@ class SyRtcEngine {
           _eventController.add(event);
           _eventHandler?.onFirstRemoteVideoFrame
               ?.call(uid, width, height, elapsed);
+          break;
+        case 'onFirstLocalVideoFrame':
+          final width = call.arguments['width'] as int? ?? 0;
+          final height = call.arguments['height'] as int? ?? 0;
+          final elapsed = call.arguments['elapsed'] as int? ?? 0;
+          _eventController.add(SyFirstLocalVideoFrameEvent(
+              width: width, height: height, elapsed: elapsed));
+          _eventHandler?.onFirstLocalVideoFrame?.call(width, height, elapsed);
           break;
         case 'onVideoSizeChanged':
           final uid = call.arguments['uid'] as String;

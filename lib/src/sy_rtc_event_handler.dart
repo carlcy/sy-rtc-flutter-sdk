@@ -27,6 +27,7 @@ class SyRtcEventHandler {
 
   /// 网络质量回调。
   ///
+  /// 每 2 秒一轮：先本端 uid（所有对端链路最差一档），再逐个对端。两端相同。
   /// 音量无关。质量由本机 WebRTC 统计里的 RTT 和丢包算出，没有样本时为
   /// [SyNetworkQuality.unknown]。两端名字和阈值相同，见 [SyNetworkQualityLevel]。
   final void Function(String uid, SyNetworkQuality txQuality,
@@ -92,9 +93,13 @@ class SyRtcEventHandler {
   final void Function(String uid, int width, int height, int elapsed)?
       onFirstRemoteVideoFrame;
 
-  /// 视频尺寸变化回调
+  /// 远端视频宽、高或旋转变化（首帧也回调一次）。两端相同。
   final void Function(String uid, int width, int height, int rotation)?
       onVideoSizeChanged;
+
+  /// 本地视频轨新建后的第一帧。两端相同。
+  final void Function(int width, int height, int elapsed)?
+      onFirstLocalVideoFrame;
 
   /// 音频路由变化回调。参数是原生原始整数，两端数值不同，见 [SyAudioRoutingChangedEvent]。
   final void Function(int routing)? onAudioRoutingChanged;
@@ -174,6 +179,7 @@ class SyRtcEventHandler {
     this.onFirstRemoteVideoDecoded,
     this.onFirstRemoteVideoFrame,
     this.onVideoSizeChanged,
+    this.onFirstLocalVideoFrame,
     this.onAudioRoutingChanged,
     this.onAudioRoute,
     this.onAudioPublishStateChanged,

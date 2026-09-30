@@ -64,8 +64,13 @@ class SyConnectionStateChangedEvent extends SyRtcEvent {
 ///
 /// [txQuality] / [rxQuality] 是按原生名字映射的旧枚举 [SyNetworkQuality]，两端名字不同，
 /// 仅为兼容保留。原生原文在 [txQualityRaw] / [rxQualityRaw]。
+/// 网络质量。两端每 2 秒一轮：先本端 uid（[isLocal] 为 true，质量为所有对端链路最差一档），
+/// 再逐个对端。房间里没有对端时只有本端 `unknown`。
 class SyNetworkQualityEvent extends SyRtcEvent {
   final String uid;
+
+  /// uid 等于本端 [SyRtcEngine.localUid]。
+  final bool isLocal;
   final SyNetworkQuality txQuality;
   final SyNetworkQuality rxQuality;
   final String txQualityRaw;
@@ -79,6 +84,7 @@ class SyNetworkQualityEvent extends SyRtcEvent {
 
   SyNetworkQualityEvent({
     required this.uid,
+    this.isLocal = false,
     required this.txQuality,
     required this.rxQuality,
     this.txQualityRaw = '',
@@ -521,6 +527,21 @@ class SyFirstRemoteVideoFrameEvent extends SyRtcEvent {
 }
 
 /// 视频大小变化事件
+/// 本地视频轨（摄像头、自定义采集或屏幕共享）新建后的第一帧。
+class SyFirstLocalVideoFrameEvent extends SyRtcEvent {
+  final int width;
+  final int height;
+
+  /// 距 join 的毫秒，join 前为 0。
+  final int elapsed;
+
+  SyFirstLocalVideoFrameEvent({
+    required this.width,
+    required this.height,
+    required this.elapsed,
+  }) : super('firstLocalVideoFrame');
+}
+
 class SyVideoSizeChangedEvent extends SyRtcEvent {
   final String uid;
   final int width;

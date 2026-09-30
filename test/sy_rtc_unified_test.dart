@@ -267,8 +267,41 @@ void main() {
       onTokenError: (code, _) => tokenErrors.add(code),
     ));
     await _emit('onError', {'errCode': 4032, 'errMsg': '访问凭证已吊销'});
-    await _emit('onError', {'errCode': SyRtcErrorCode.kicked, 'errMsg': 'kicked'});
+    await _emit(
+        'onError', {'errCode': SyRtcErrorCode.kicked, 'errMsg': 'kicked'});
     expect(errors, [4032, 1004]);
     expect(tokenErrors, [SyTokenBusinessCode.revoked]);
+  });
+
+  test('local network quality flag and first local frame event', () async {
+    const channel = MethodChannel('sy_rtc_flutter_sdk');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async => null);
+    addTearDown(() => TestDefaultBinaryMessengerBinding
+        .instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null));
+    final engine = SyRtcEngine();
+    await engine.init('app');
+    await engine.join('room', 'me', 'tok');
+    expect(engine.localUid, 'me');
+    final quality = <SyNetworkQualityEvent>[];
+    final frames = <String>[];
+    final sub = engine.onNetworkQuality.listen(quality.add);
+    engine.setEventHandler(SyRtcEventHandler(
+      onFirstLocalVideoFrame: (w, h, e) => frames.add('$w x $h @$e'),
+    ));
+    await _emit('onNetworkQuality',
+        {'uid': 'me', 'txQuality': 'poor', 'rxQuality': 'poor'});
+    await _emit('onNetworkQuality',
+        {'uid': 'u2', 'txQuality': 'good', 'rxQuality': 'good'});
+    await _emit(
+        'onFirstLocalVideoFrame', {'width': 640, 'height': 480, 'elapsed': 12});
+    await Future<void>.delayed(Duration.zero);
+    expect(quality.map((e) => e.isLocal), [true, false]);
+    expect(quality.first.txLevel, SyNetworkQualityLevel.poor);
+    expect(frames, ['640 x 480 @12']);
+    await sub.cancel();
+    await engine.leave();
+    expect(engine.localUid, isNull);
   });
 }
