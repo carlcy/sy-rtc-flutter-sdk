@@ -232,6 +232,7 @@ class SyRoomService {
   /// 获取 RTC Token（别名 [getToken]）。
   ///
   /// 返回用于 [SyRtcEngine.join] 的 RTC Token；信令 WS 须带 `?token=`。
+  /// [meta] 为 true 时返回整段 JSON 字符串（含 `sfuUrl` / `sfuToken`），原样交给 `join` / `renewToken`。
   /// [role] host|audience|publisher|subscriber
   /// [qualityTier] 后端档位字符串：`audio` | `sd` | `hd` | `fhd`
   /// [tier] 与 [qualityTier] 相同含义的枚举；两者都传时以 [qualityTier] 为准
@@ -271,6 +272,9 @@ class SyRoomService {
     }
     final data = result['data'];
     if (data is String) return data;
+    // meta=true: return the whole JSON (token + sfuUrl/sfuToken/...); the native SDK
+    // join/renewToken parse it and switch media to LiveKit when mediaWired is true.
+    if (meta && data is Map) return jsonEncode(data);
     if (data is Map && data['token'] != null) return data['token'].toString();
     if (data != null) return data.toString();
     throw Exception('Token 响应格式错误');

@@ -760,7 +760,11 @@ SyConnectionChangedReason syConnectionReasonFromNative(String raw) {
     case 'signaling':
     case 'ice':
     case 'signaling_give_up':
+    case 'sfu_lost': // LiveKit 媒体连接断开（非踢人），原生会重连 3 次
+    case 'sfu_reconnecting':
       return SyConnectionChangedReason.interrupt;
+    case 'sfu_reconnected':
+      return SyConnectionChangedReason.rejoinSuccess;
     case 'leaving':
     case 'leave':
       return SyConnectionChangedReason.leaveChannel;

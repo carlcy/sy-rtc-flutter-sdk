@@ -133,6 +133,21 @@ git push origin v3.2.2
 
 `dart pub publish` 会带上 `example/`。example 继续使用 `path: ../`，这是 pub.dev 对插件示例的常规写法。
 
+## 媒体服务器（LiveKit）
+
+服务端配置了 LiveKit 节点时，拉 Token 带 `meta: true`，把返回的 JSON 字符串原样交给 `join` / `renewToken`：
+
+```dart
+final metaJson = await rooms.fetchToken(channelId: channelId, uid: uid, meta: true);
+await engine.join(channelId, uid, metaJson);
+```
+
+- 媒体切换在原生 SDK 里完成（Android `livekit-android`、iOS `LiveKitClient`），Dart 侧只透传 JSON：`mediaWired=true` 且有 `sfuUrl` / `sfuToken` 时走 LiveKit，否则走 P2P，调用方式不变。插件不再额外引入 Dart 的 `livekit_client`，避免同一进程里两套媒体栈。
+- 被踢只回调一次 `onKicked`；服务端静音本端回调 `onServerMuteAudio`，SDK 不自动开麦；网络质量 / 音量来自 LiveKit。
+- 媒体断开时 `onConnectionStateChanged` 的原因是 `sfu_lost` / `sfu_reconnecting`（映射为 `interrupt`），恢复后是 `sfu_reconnected`（映射为 `rejoinSuccess`）。
+- 目前只在 P2P 下可用：屏幕共享、自定义视频源与美颜、数据流、SEI、频道内录音、伴奏混入上行。
+- 需要原生 SDK 的 LiveKit 版本（Android / iOS 下一个发布版）。插件当前依赖的原生 `3.2.2` 收到 meta JSON 时仍走 P2P。iOS 用 CocoaPods 时 `Podfile` 还要加 `source 'https://github.com/livekit/podspecs.git'`。
+
 ## 常见问题
 
 **初始化或进房失败。** 核对 AppId、Token 是否过期、麦克风/摄像头是否已授权。Token 必须来自业务服务器。
