@@ -8,7 +8,7 @@
 
 ```yaml
 dependencies:
-  sy_rtc_flutter_sdk: ^3.2.2
+  sy_rtc_flutter_sdk: ^3.3.0
 ```
 
 还没发到 pub.dev 时：
@@ -18,12 +18,12 @@ dependencies:
   sy_rtc_flutter_sdk:
     git:
       url: https://github.com/carlcy/sy-rtc-flutter-sdk.git
-      ref: v3.2.2
+      ref: v3.3.0
 ```
 
 本目录的 `pubspec.yaml` 使用 `path: ../`，只为了在本仓库里跑当前源码。这不是客户接入方式。
 
-Android 原生库由插件传递，坐标是 `com.github.carlcy:sy-rtc-android-sdk:v3.2.2`（JitPack，需先发布该 tag）。示例不再引用本地 AAR。iOS 依赖 CocoaPods trunk 上的 `SyRtcSDK` 3.2.2（插件传递）。说明见仓库根目录 README。
+Android 原生库由插件传递，坐标是 `com.github.carlcy:sy-rtc-android-sdk:v3.3.0`（JitPack，需先发布该 tag）。示例不再引用本地 AAR。iOS 依赖 CocoaPods trunk 上的 `SyRtcSDK` 3.3.0（插件传递）。说明见仓库根目录 README。
 
 ## 运行
 

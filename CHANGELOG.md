@@ -1,3 +1,10 @@
+## 3.3.0
+
+- LiveKit 媒体面：依赖 Android `com.github.carlcy:sy-rtc-android-sdk:v3.3.0`、iOS `SyRtcSDK` 3.3.0，二者都能直接吃 `meta=true` 的 Token JSON。`SyRoomService.fetchToken(meta: true)` 返回整段 JSON（此前只取 token，丢了 `sfuUrl` / `sfuToken`），原样交给 `join` / `renewToken` 即可；`mediaWired=true` 且有 `sfuUrl` / `sfuToken` 时走 LiveKit，否则 P2P。
+- 连接原因 `sfu_lost` / `sfu_reconnecting` 映射为 `interrupt`，`sfu_reconnected` 映射为 `rejoinSuccess`。
+- iOS 宿主 `Podfile` 需要 `source 'https://github.com/livekit/podspecs.git'`（放在 CDN 源之前）；Android 宿主需要 `https://jitpack.io`。
+- Android：`syRtcAndroidSdkVersion` gradle 属性可把原生依赖换成本地构建（默认 `v3.3.0`）。
+
 ## 3.2.2
 
 - 版本对齐：插件、Android（`com.github.carlcy:sy-rtc-android-sdk:v3.2.2`）、iOS（`SyRtcSDK` 3.2.2）统一为 3.2.2。3.2.1 的 Android 仍指向 v3.2.0，因此发 3.2.2。代码无其他改动。

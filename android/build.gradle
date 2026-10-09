@@ -3,7 +3,7 @@
 // @formatter:on
 
 group = "com.sy.rtc.flutter"
-version = "3.2.2"
+version = "3.3.0"
 
 buildscript {
     ext.kotlin_version = "2.2.20"
@@ -22,7 +22,7 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // 同一坐标已 publishToMavenLocal 时先用本地产物（JitPack tag v3.2.2 已发布）。
+        // 同一坐标已 publishToMavenLocal 时先用本地产物（JitPack tag v3.3.0 已发布）。
         // 客户机器上没有这份本地包时，解析会落到下面的 JitPack。
         mavenLocal()
         maven { url 'https://jitpack.io' }  // JitPack 仓库（用于 Android SDK）
@@ -69,13 +69,13 @@ android {
 }
 
 dependencies {
-    // 原生 Android SDK 3.2.2，与插件、iOS SyRtcSDK 同版本。
-    // https://jitpack.io/#carlcy/sy-rtc-android-sdk/v3.2.2
+    // 原生 Android SDK 3.3.0，与插件、iOS SyRtcSDK 同版本。
+    // https://jitpack.io/#carlcy/sy-rtc-android-sdk/v3.3.0
     // api：依赖会传递给宿主 App，业务工程不必再声明这份坐标，
     // 但宿主必须能解析 https://jitpack.io （见 README「平台配置」）。
     // 宿主 android/gradle.properties 可写 syRtcAndroidSdkVersion=<版本> 覆盖（例如本地
-    // publishToMavenLocal 的 LiveKit 预览版）；不写时用发布版 v3.2.2。
-    def syRtcAndroidSdkVersion = (project.findProperty("syRtcAndroidSdkVersion") ?: "v3.2.2").toString().trim()
+    // publishToMavenLocal 的 LiveKit 预览版）；不写时用发布版 v3.3.0。
+    def syRtcAndroidSdkVersion = (project.findProperty("syRtcAndroidSdkVersion") ?: "v3.3.0").toString().trim()
     api("com.github.carlcy:sy-rtc-android-sdk:${syRtcAndroidSdkVersion}")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")

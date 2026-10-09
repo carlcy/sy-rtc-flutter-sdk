@@ -1,6 +1,6 @@
 name: sy_rtc_flutter_sdk
 description: "SY RTC Flutter SDK - real-time audio and video calls for Flutter, on Android and iOS."
-version: 3.2.2
+version: 3.3.0
 homepage: https://github.com/carlcy/sy-rtc-flutter-sdk
 repository: https://github.com/carlcy/sy-rtc-flutter-sdk
 issue_tracker: https://github.com/carlcy/sy-rtc-flutter-sdk/issues

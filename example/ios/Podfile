@@ -1,3 +1,6 @@
+source 'https://github.com/livekit/podspecs.git'  # LiveKitClient 2.17 不在 Trunk
+source 'https://cdn.cocoapods.org/'
+
 # Define a global platform for your project
 # SyRtcSDK 使用 URLSessionWebSocketTask（iOS 13+），因此示例工程最低 iOS 版本设为 13.0
 platform :ios, '13.0'

@@ -6,9 +6,9 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // 与插件相同：本地已发布 com.github.carlcy:sy-rtc-android-sdk:v3.2.2 时优先使用。
+        // 与插件相同：本地已发布 com.github.carlcy:sy-rtc-android-sdk:v3.3.0 时优先使用。
         mavenLocal()
-        // 插件以 api 依赖 com.github.carlcy:sy-rtc-android-sdk:v3.2.2
+        // 插件以 api 依赖 com.github.carlcy:sy-rtc-android-sdk:v3.3.0
         maven { url 'https://jitpack.io' }
     }
 }
