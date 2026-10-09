@@ -146,7 +146,7 @@ await engine.join(channelId, uid, metaJson);
 - 被踢只回调一次 `onKicked`；服务端静音本端回调 `onServerMuteAudio`，SDK 不自动开麦；网络质量 / 音量来自 LiveKit。
 - 媒体断开时 `onConnectionStateChanged` 的原因是 `sfu_lost` / `sfu_reconnecting`（映射为 `interrupt`），恢复后是 `sfu_reconnected`（映射为 `rejoinSuccess`）。
 - 目前只在 P2P 下可用：屏幕共享、自定义视频源与美颜、数据流、SEI、频道内录音、伴奏混入上行。
-- 需要原生 SDK 的 LiveKit 版本（Android / iOS 下一个发布版）。插件当前依赖的原生 `3.2.2` 收到 meta JSON 时仍走 P2P。iOS 用 CocoaPods 时 `Podfile` 还要加 `source 'https://github.com/livekit/podspecs.git'`。
+- 需要原生 SDK 的 LiveKit 版本（Android / iOS 下一个发布版）。插件当前依赖的原生 `3.2.2` 不认识 meta JSON（会把整段 JSON 当 Token 发给信令，鉴权失败），升级原生依赖前请继续用 `meta: false`。iOS 用 CocoaPods 时 `Podfile` 还要加 `source 'https://github.com/livekit/podspecs.git'`。
 
 ## 常见问题
 
