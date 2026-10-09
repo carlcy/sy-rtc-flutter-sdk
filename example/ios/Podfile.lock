@@ -2,12 +2,20 @@ PODS:
   - Flutter (1.0.0)
   - integration_test (0.0.1):
     - Flutter
+  - LiveKitClient (2.15.1):
+    - LiveKitUniFFI (= 0.0.6)
+    - LiveKitWebRTC (= 144.7559.10)
+    - SwiftProtobuf
+  - LiveKitUniFFI (0.0.6)
+  - LiveKitWebRTC (144.7559.10)
   - permission_handler_apple (9.3.0):
     - Flutter
-  - sy_rtc_flutter_sdk (3.2.2):
+  - SwiftProtobuf (1.38.1)
+  - sy_rtc_flutter_sdk (3.3.0):
     - Flutter
-    - SyRtcSDK (= 3.2.2)
-  - SyRtcSDK (3.2.2):
+    - SyRtcSDK (= 3.3.0)
+  - SyRtcSDK (3.3.0):
+    - LiveKitClient (~> 2.15.1)
     - WebRTC-SDK (= 125.6422.07)
   - WebRTC-SDK (125.6422.07)
 
@@ -18,7 +26,12 @@ DEPENDENCIES:
   - sy_rtc_flutter_sdk (from `.symlinks/plugins/sy_rtc_flutter_sdk/ios`)
 
 SPEC REPOS:
+  https://github.com/livekit/podspecs.git:
+    - LiveKitClient
+    - LiveKitUniFFI
+    - LiveKitWebRTC
   trunk:
+    - SwiftProtobuf
     - SyRtcSDK
     - WebRTC-SDK
 
@@ -35,11 +48,15 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
+  LiveKitClient: a3686a0dd0f023d403f17a9fb4a090514df19ee2
+  LiveKitUniFFI: 64ffbba4f13f95918753dd81bbc8b326e3d0a924
+  LiveKitWebRTC: 1accf21b25fba351d2e237aca132f7f9b8d67eb7
   permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
-  sy_rtc_flutter_sdk: ee12dfed16577843f8ca9678fda245f18753ba84
-  SyRtcSDK: 6e49f1b4ebcf2f16aaee65da7b30ae0574edacd6
+  SwiftProtobuf: 409d3aaec90e51b1705b1dd8065b56893450e77c
+  sy_rtc_flutter_sdk: c3cec81d6bfba092b3fd780eb640c04a6375b2a4
+  SyRtcSDK: dd8c662069f12c30178ec97ee956b49d629f7a52
   WebRTC-SDK: dff00a3892bc570b6014e046297782084071657e
 
-PODFILE CHECKSUM: 1e6342b23ac33c0790074bb30a83f3659383bfd8
+PODFILE CHECKSUM: ba358949af61c8585c48303be9bd46b33ff065ea
 
 COCOAPODS: 1.16.2
