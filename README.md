@@ -98,7 +98,7 @@ await Permission.camera.request();
 
 **iOS 原生 SDK：** 插件依赖 CocoaPods trunk 上的 `SyRtcSDK` `3.3.0`（源码仓库 `https://github.com/carlcy/sy-rtc-ios-sdk`，tag `v3.3.0`，也有 SPM 的 `Package.swift`），WebRTC 由 `SyRtcSDK` 传递（`WebRTC-SDK` `125.6422.07`）。插件不再内置 iOS 源码，客户无需自己写 `pod 'SyRtcSDK'`。
 
-3.3.0 起 `SyRtcSDK` 依赖 `LiveKitClient` 2.17（不在 Trunk），宿主 `ios/Podfile` 顶部要加：
+3.3.0 起 `SyRtcSDK` 依赖 `LiveKitClient`（只在 LiveKit 的 spec 源，不在 Trunk），宿主 `ios/Podfile` 顶部要加下面两行，否则 `pod install` 报找不到 `LiveKitClient`：
 
 ```ruby
 source 'https://github.com/livekit/podspecs.git'
@@ -153,7 +153,7 @@ await engine.join(channelId, uid, metaJson);
 - 被踢只回调一次 `onKicked`；服务端静音本端回调 `onServerMuteAudio`，SDK 不自动开麦；网络质量 / 音量来自 LiveKit。
 - 媒体断开时 `onConnectionStateChanged` 的原因是 `sfu_lost` / `sfu_reconnecting`（映射为 `interrupt`），恢复后是 `sfu_reconnected`（映射为 `rejoinSuccess`）。
 - 目前只在 P2P 下可用：屏幕共享、自定义视频源与美颜、数据流、SEI、频道内录音、伴奏混入上行。
-- 需要原生 3.3.0 及以上（插件 3.3.0 已依赖 Android `v3.3.0`、iOS `SyRtcSDK` 3.3.0）。iOS 用 CocoaPods 时宿主 `Podfile` 顶部要先写 `source 'https://github.com/livekit/podspecs.git'`，再写 `source 'https://cdn.cocoapods.org/'`（`LiveKitClient` 2.17 不在 Trunk）；Android 宿主仓库要有 `https://jitpack.io`。
+- 需要原生 3.3.0 及以上（插件 3.3.0 已依赖 Android `v3.3.0`、iOS `SyRtcSDK` 3.3.0）。iOS 用 CocoaPods 时宿主 `Podfile` 顶部要先写 `source 'https://github.com/livekit/podspecs.git'`，再写 `source 'https://cdn.cocoapods.org/'`（`LiveKitClient` 不在 Trunk）；Android 宿主仓库要有 `https://jitpack.io`。
 - 联调未发布的原生构建：Android 在原生仓库 `./gradlew publishToMavenLocal -PPOM_VERSION=livekit-local`，宿主 `android/gradle.properties` 写 `syRtcAndroidSdkVersion=livekit-local`（不写时插件用 `v3.3.0`）；iOS 在宿主 `Podfile` 写 `pod 'SyRtcSDK', :path => '<rtc-ios-sdk 路径>'`。
 
 ## 常见问题

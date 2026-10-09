@@ -1,4 +1,4 @@
-source 'https://github.com/livekit/podspecs.git'  # LiveKitClient 2.17 不在 Trunk
+source 'https://github.com/livekit/podspecs.git'  # LiveKitClient 不在 Trunk
 source 'https://cdn.cocoapods.org/'
 
 # Define a global platform for your project
