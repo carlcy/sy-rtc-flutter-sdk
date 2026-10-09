@@ -147,6 +147,7 @@ await engine.join(channelId, uid, metaJson);
 - 媒体断开时 `onConnectionStateChanged` 的原因是 `sfu_lost` / `sfu_reconnecting`（映射为 `interrupt`），恢复后是 `sfu_reconnected`（映射为 `rejoinSuccess`）。
 - 目前只在 P2P 下可用：屏幕共享、自定义视频源与美颜、数据流、SEI、频道内录音、伴奏混入上行。
 - 需要原生 SDK 的 LiveKit 版本（Android / iOS 下一个发布版）。插件当前依赖的原生 `3.2.2` 不认识 meta JSON（会把整段 JSON 当 Token 发给信令，鉴权失败），升级原生依赖前请继续用 `meta: false`。iOS 用 CocoaPods 时 `Podfile` 还要加 `source 'https://github.com/livekit/podspecs.git'`。
+- 原生 LiveKit 版本发布前要在本地联调：Android 在原生仓库 `./gradlew publishToMavenLocal -PPOM_VERSION=livekit-local`，宿主 `android/gradle.properties` 写 `syRtcAndroidSdkVersion=livekit-local`（不写时插件用 `v3.2.2`）；iOS 在宿主 `Podfile` 写 `pod 'SyRtcSDK', :path => '<rtc-ios-sdk 路径>'`，并加上面的 LiveKit podspecs 源。
 
 ## 常见问题
 
