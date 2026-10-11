@@ -63,6 +63,18 @@ allprojects {
 }
 ```
 
+新版 `flutter create` 生成的是 `android/build.gradle.kts`，写法：
+
+```kotlin
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+```
+
 如果工程把仓库收进了 `android/settings.gradle` 的 `dependencyResolutionManagement`，把同一条 `maven { url 'https://jitpack.io' }` 加到那里。
 
 权限（插件 Manifest 会合并进宿主；麦克风和摄像头仍要在运行时申请）：
